@@ -19,10 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # If your site is in the repo root:
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .   # change to your site folder if needed (e.g., 'dist' or 'build')
+          path: .   # change if your site is in a subfolder
 
   deploy:
     environment:
@@ -33,3 +32,5 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Print site URL
+        run: echo "✅ Deployed to ${{ steps.deployment.outputs.page_url }}"
