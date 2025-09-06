@@ -1,4 +1,4 @@
-name: Build and deploy (GitHub Pages)
+name: pages build and deployment
 
 on:
   push:
@@ -18,11 +18,23 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .   # change if your site is in a subfolder
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      # Optional — configure-pages helps GitHub link the artifact to Pages nicely
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      # If your site is at repo root, keep path: .
+      # Change to 'dist' or 'build' if you have a build output folder.
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  # GitHub’s internal template shows a separate "report-build-status" job.
+  # You can’t create the exact internal job ("on: dynamic"), but this workflow
+  # will surface the same deployment URL and green checks like your other repo.
   deploy:
     environment:
       name: github-pages
@@ -31,6 +43,8 @@ jobs:
     needs: build
     steps:
       - id: deployment
+        name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
+
       - name: Print site URL
         run: echo "✅ Deployed to ${{ steps.deployment.outputs.page_url }}"
