@@ -35,14 +35,12 @@ button, .tab{
 button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: rgba(255,255,255,0.30); }
 
 .container{ display:grid; grid-template-columns: 1fr; gap:18px; padding: 16px; max-width:1120px; margin:0 auto 40px; }
-.cards{ display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:18px; }
 .card{
   position:relative; width:100%;
   padding:18px; border-radius:18px; background: var(--card);
   box-shadow: var(--shadow); overflow:hidden; backdrop-filter:saturate(160%) blur(8px);
 }
 .card h2{ margin:0 0 10px; color:var(--cardText) }
-.card p{ color:var(--cardText); opacity:.9 }
 
 footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font-weight:700; color:#fff }
 
@@ -55,14 +53,8 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
 .gameWrap{ display:none; }
 .gameWrap.active{ display:block; }
 .gameHeader{ display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; margin:4px 6px 10px; }
-.gameHeader .left{ display:flex; gap:10px; align-items:center; }
-.gameHeader h3{ margin:0; }
-.heroCanvas{ width:100%; height:520px; background: rgba(0,0,0,0.1); border-radius:14px; display:block; touch-action:none; }
-.smallCanvas{ width:100%; height:520px; background: rgba(0,0,0,0.1); border-radius:14px; display:block; touch-action:none; }
+.heroCanvas,.smallCanvas{ width:100%; height:520px; background: rgba(0,0,0,0.1); border-radius:14px; display:block; touch-action:none; }
 .controlsRow{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-
-.badge{ background:#7c3aed; color:#fff; padding:4px 10px; border-radius:999px; font-weight:900 }
-.kbd{ background:rgba(255,255,255,0.25); padding:2px 6px; border-radius:6px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
 /* Verse */
 .votdTop{ margin-top:10px; }
@@ -72,6 +64,13 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
 
 /* Scroll lock while playing */
 .noScroll{ overflow:hidden; }
+
+/* TicTacToe cells */
+.cell{
+  width:120px;height:120px;font-size:46px;border:none;border-radius:16px;
+  background:rgba(255,255,255,0.25);color:#111;font-weight:900;box-shadow:var(--shadow);
+}
+.dark .cell{ color:#fff; }
 </style>
 </head>
 <body>
@@ -79,9 +78,7 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
 
 <header>
   <h1>🎮 Five Mini-Games + 📖 Daily Bible Verse</h1>
-  <div class="topbar">
-    <button id="themeBtn">🌓 Theme</button>
-  </div>
+  <div class="topbar"><button id="themeBtn">🌓 Theme</button></div>
 </header>
 
 <!-- Verse at top center -->
@@ -101,12 +98,13 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
     <!-- 1) Shape Catch -->
     <div class="gameWrap active" data-game="catch">
       <div class="gameHeader">
-        <div class="left"><h3>🎯 Shape Catch — 30s</h3><span class="badge" id="catchBadge" style="display:none">×2 MODE</span></div>
         <div class="controlsRow">
+          <h3>🎯 Shape Catch — 30s</h3>
           <button id="catchStart">Start</button>
           <span>Score: <strong id="catchScore">0</strong></span>
           <span>Time: <strong id="catchTime">30</strong>s</span>
           <span>Best: <strong id="catchBest">0</strong></span>
+          <span class="badge" id="catchBadge" style="display:none">×2 MODE</span>
         </div>
       </div>
       <canvas id="catchCanvas" class="heroCanvas"></canvas>
@@ -116,27 +114,21 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
     <!-- 2) Snake -->
     <div class="gameWrap" data-game="snake">
       <div class="gameHeader">
-        <div class="left"><h3>🐍 Snake</h3></div>
         <div class="controlsRow">
+          <h3>🐍 Snake</h3>
           <button id="snakeStart">Start</button>
           <span>Score: <strong id="snakeScore">0</strong></span>
-          <div class="mobileArrows" style="display:flex;gap:6px;flex-wrap:wrap">
-            <button id="snakeUp">↑</button>
-            <button id="snakeLeft">←</button>
-            <button id="snakeRight">→</button>
-            <button id="snakeDown">↓</button>
-          </div>
         </div>
       </div>
       <canvas id="snakeCanvas" class="smallCanvas"></canvas>
-      <p style="text-align:center; margin:8px 0 0">Swipe to steer on mobile.</p>
+      <p style="text-align:center; margin:8px 0 0">Use arrows or swipe to steer.</p>
     </div>
 
     <!-- 3) Flappy Dot -->
     <div class="gameWrap" data-game="flap">
       <div class="gameHeader">
-        <div class="left"><h3>🟣 Flappy Dot</h3></div>
         <div class="controlsRow">
+          <h3>🟣 Flappy Dot</h3>
           <button id="flapStart">Start</button>
           <span>Score: <strong id="flapScore">0</strong></span>
         </div>
@@ -145,28 +137,30 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
       <p style="text-align:center; margin:8px 0 0">Tap/Click or press Space.</p>
     </div>
 
-    <!-- 4) Memory Match -->
-    <div class="gameWrap" data-game="memory">
+    <!-- 4) Breakout -->
+    <div class="gameWrap" data-game="breakout">
       <div class="gameHeader">
-        <div class="left"><h3>🧠 Memory Match (4×4)</h3></div>
         <div class="controlsRow">
-          <button id="memStart">Reset</button>
-          <span>Moves: <strong id="memMoves">0</strong></span>
+          <h3>🧱 Breakout</h3>
+          <button id="brkStart">Start</button>
+          <span>Score: <strong id="brkScore">0</strong></span>
+          <span>Lives: <strong id="brkLives">3</strong></span>
         </div>
       </div>
-      <div id="memoryGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px; max-width:640px; margin:0 auto"></div>
+      <canvas id="brkCanvas" class="smallCanvas"></canvas>
+      <p style="text-align:center; margin:8px 0 0">Move with ←/→ or drag with mouse/touch.</p>
     </div>
 
     <!-- 5) Tic-Tac-Toe -->
     <div class="gameWrap" data-game="ttt">
       <div class="gameHeader">
-        <div class="left"><h3>⭕ Tic-Tac-Toe (AI)</h3></div>
         <div class="controlsRow">
+          <h3>⭕ Tic-Tac-Toe (AI)</h3>
           <button id="tttReset">Reset</button>
           <span id="tttMsg">Your turn (X)</span>
         </div>
       </div>
-      <div id="tttGrid" style="display:grid;grid-template-columns:repeat(3,120px);gap:8px; justify-content:center; margin:10px auto"></div>
+      <div id="tttGrid" style="display:grid;grid-template-columns:repeat(3,120px);gap:8px;justify-content:center; margin:10px auto"></div>
     </div>
 
   </section>
@@ -182,7 +176,7 @@ qs('#themeBtn').onclick=()=>document.body.classList.toggle('dark');
 /* Lock scrolling while a game is running */
 let playing=false;
 function lockScroll(on){ document.body.classList.toggle('noScroll', !!on); }
-function preventKeys(e){ if(!playing) return; const k=e.key||e.code; if(k===' '||k==='Space'||k==='Spacebar'||k.startsWith('Arrow')) e.preventDefault(); }
+function preventKeys(e){ if(!playing) return; const k=e.key||e.code; if(k===' '||k==='Space'||k==='Spacebar'||(k&&k.startsWith('Arrow'))) e.preventDefault(); }
 window.addEventListener('keydown', preventKeys, {passive:false});
 document.addEventListener('touchmove', e=>{ if(playing) e.preventDefault(); }, {passive:false});
 
@@ -191,23 +185,15 @@ const games=[
   { key:'catch', label:'🎯 Shape Catch' },
   { key:'snake', label:'🐍 Snake' },
   { key:'flap',  label:'🟣 Flappy Dot' },
-  { key:'memory',label:'🧠 Memory' },
+  { key:'breakout',label:'🧱 Breakout' },
   { key:'ttt',   label:'⭕ Tic-Tac-Toe' },
 ];
 const tabsEl=qs('#tabs'); let current='catch';
-function renderTabs(){
-  tabsEl.innerHTML='';
-  games.forEach(g=>{
-    const b=document.createElement('button');
-    b.className='tab'+(g.key===current?' active':'');
-    b.textContent=g.label; b.onclick=()=>activate(g.key);
-    tabsEl.appendChild(b);
-  });
-}
+function renderTabs(){ tabsEl.innerHTML=''; games.forEach(g=>{ const b=document.createElement('button'); b.className='tab'+(g.key===current?' active':''); b.textContent=g.label; b.onclick=()=>activate(g.key); tabsEl.appendChild(b); }); }
 function activate(key){ current=key; renderTabs(); qsa('.gameWrap').forEach(w=>w.classList.toggle('active', w.dataset.game===key)); GAMES[key]?.onShow?.(); }
 renderTabs();
 
-/* ===== Verse of the Day ===== */
+/* ===== Verse of the Day (with fallbacks) ===== */
 const verseEl=qs('#verse'), refEl=qs('#verseRef'), apiNote=qs('#apiNote');
 const FALLBACKS=[
   {ref:'Philippians 4:13', text:'I can do all things through Christ who strengthens me.'},
@@ -238,7 +224,7 @@ fetchVerse();
 /* ===== Games ===== */
 const GAMES={};
 
-/* --- 1) Shape Catch --- */
+/* --- 1) Shape Catch (with ×2 mode & bombs) --- */
 GAMES.catch=(function(){
   const canvas=qs('#catchCanvas'); const scoreEl=qs('#catchScore'); const timeEl=qs('#catchTime'); const bestEl=qs('#catchBest'); const badge=qs('#catchBadge');
   let ctx,w,h,rafId,running=false,tLeft=30,score=0,best=+localStorage.getItem('catchBest')||0; bestEl.textContent=best;
@@ -314,7 +300,7 @@ GAMES.catch=(function(){
   return { onShow };
 })();
 
-/* --- 2) Snake --- */
+/* --- 2) Snake (arrows + swipe) --- */
 GAMES.snake=(function(){
   const canvas=qs('#snakeCanvas'); const scoreEl=qs('#snakeScore');
   let ctx,w,h,grid=20,dir={x:1,y:0},snake,food,alive=false,loopId,touchStart=null;
@@ -346,15 +332,10 @@ GAMES.snake=(function(){
     const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y; const ax=Math.abs(dx), ay=Math.abs(dy);
     if(Math.max(ax,ay)>22){ if(ax>ay){ if(dx>0&&dir.x!==-1) dir={x:1,y:0}; else if(dx<0&&dir.x!==1) dir={x:-1,y:0}; } else { if(dy>0&&dir.y!==-1) dir={x:0,y:1}; else if(dy<0&&dir.y!==1) dir={x:0,y:-1}; } touchStart={x:t.clientX,y:t.clientY}; }
   }, {passive:false});
-  // On-screen arrows
-  qs('#snakeUp').onclick=()=>{ if(dir.y!==1) dir={x:0,y:-1}; };
-  qs('#snakeDown').onclick=()=>{ if(dir.y!==-1) dir={x:0,y:1}; };
-  qs('#snakeLeft').onclick=()=>{ if(dir.x!==1) dir={x:-1,y:0}; };
-  qs('#snakeRight').onclick=()=>{ if(dir.x!==-1) dir={x:1,y:0}; };
   return { onShow };
 })();
 
-/* --- 3) Flappy Dot --- */
+/* --- 3) Flappy Dot (space/tap) --- */
 GAMES.flap=(function(){
   const canvas=qs('#flapCanvas'); const scoreEl=qs('#flapScore');
   let ctx,w,h; let y,vy,gapX,pipes=[],score,alive=false; const G=0.45, JUMP=-7.2;
@@ -378,32 +359,88 @@ GAMES.flap=(function(){
   return { onShow };
 })();
 
-/* --- 4) Memory Match --- */
-GAMES.memory=(function(){
-  const grid=qs('#memoryGrid'); const movesEl=qs('#memMoves');
-  const EMOJI='🐶🐱🦊🐼🐯🐷🦁🐵'.split(''); let tiles=[],sel=[],moves=0,locked=false,matched=0;
-  function reset(){ const deck=[...EMOJI,...EMOJI].sort(()=>Math.random()-0.5).map((e,i)=>({id:i,emoji:e,open:false,done:false})); tiles=deck; sel=[]; moves=0; matched=0; movesEl.textContent='0'; render(); }
-  function clickTile(t){ if(locked||t.done||t.open) return; t.open=true; sel.push(t); render(); if(sel.length===2){ locked=true; moves++; movesEl.textContent=String(moves); setTimeout(()=>{ const [a,b]=sel; if(a.emoji===b.emoji){ a.done=b.done=true; matched+=2; } a.open=b.open=false; sel=[]; locked=false; render(); },600); } }
-  function render(){ grid.innerHTML=''; tiles.forEach(t=>{ const btn=document.createElement('button'); btn.className='tile'; btn.style.cssText='aspect-ratio:1/1;border:none;border-radius:14px;box-shadow:var(--shadow);background:'+ (t.open||t.done?'#8b5cf6':'rgba(255,255,255,0.25)') +';color:#fff;font-size:34px;font-weight:900;'; btn.textContent= t.open||t.done? t.emoji : '❓'; btn.onclick=()=>clickTile(t); grid.appendChild(btn); }); if(matched===tiles.length && tiles.length){ setTimeout(()=>alert('Nice! Completed in '+moves+' moves.'), 10); } }
-  qs('#memStart').onclick=reset; function onShow(){ if(!tiles.length) reset(); }
+/* --- 4) Breakout (arrows/mouse/touch) --- */
+GAMES.breakout=(function(){
+  const canvas=qs('#brkCanvas'); const scoreEl=qs('#brkScore'); const livesEl=qs('#brkLives');
+  let ctx,w,h,ball,paddle,bricks,cols,rows,brickW,brickH,score,lives,rafId,keys={},running=false;
+
+  function resize(){ const DPR=window.devicePixelRatio||1; w=canvas.clientWidth; h=canvas.clientHeight; canvas.width=w*DPR; canvas.height=h*DPR; ctx=canvas.getContext('2d'); ctx.setTransform(DPR,0,0,DPR,0,0); if(!running) draw(); }
+  function reset(){
+    score=0; lives=3; running=true; playing=true; lockScroll(true);
+    ball={x:w/2,y:h*0.6,r:7,vx:3.2,vy:-3.2};
+    paddle={w:Math.max(80,w*0.18),h:14,x:w/2,y:h-28,speed:8};
+    // bricks
+    cols=8; rows=5; brickW=(w-60)/cols; brickH=24;
+    bricks=Array.from({length:rows},(_,r)=>Array.from({length:cols},(_,c)=>({x:30+c*brickW,y:40+r*(brickH+10),hit:false})));
+    scoreEl.textContent='0'; livesEl.textContent=String(lives);
+    loop();
+  }
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    // paddle
+    ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(paddle.x-paddle.w/2,paddle.y-paddle.h/2,paddle.w,paddle.h);
+    // ball
+    ctx.beginPath(); ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2); ctx.fillStyle='#8b5cf6'; ctx.fill();
+    // bricks
+    bricks.forEach((row,i)=>row.forEach((b,j)=>{ if(b.hit) return; ctx.fillStyle=`hsl(${(i*cols+j)*15%360} 85% 55%)`; ctx.fillRect(b.x,b.y,brickW-6,brickH); }));
+  }
+  function step(){
+    // input
+    if(keys['ArrowLeft']) paddle.x-=paddle.speed;
+    if(keys['ArrowRight']) paddle.x+=paddle.speed;
+    paddle.x=Math.max(paddle.w/2, Math.min(w-paddle.w/2, paddle.x));
+    // physics
+    ball.x+=ball.vx; ball.y+=ball.vy;
+    if(ball.x<ball.r||ball.x>w-ball.r) ball.vx*=-1;
+    if(ball.y<ball.r) ball.vy*=-1;
+    // paddle collide
+    if(ball.y+ball.r>=paddle.y-paddle.h/2 && Math.abs(ball.x-paddle.x)<=paddle.w/2){
+      ball.y=paddle.y-paddle.h/2-ball.r; ball.vy*=-1;
+      // add english based on hit position
+      const off=(ball.x-paddle.x)/(paddle.w/2); ball.vx=off*4.2;
+    }
+    // brick collide
+    bricks.forEach(row=>row.forEach(b=>{
+      if(b.hit) return;
+      if(ball.x> b.x && ball.x< b.x+brickW-6 && ball.y> b.y && ball.y< b.y+brickH){
+        b.hit=true; score++; scoreEl.textContent=String(score); ball.vy*=-1;
+      }
+    }));
+    // lose
+    if(ball.y>h+20){ lives--; livesEl.textContent=String(lives); if(lives<=0){ running=false; playing=false; lockScroll(false); return; } ball={x:w/2,y:h*0.6,r:7,vx:3.2,vy:-3.2}; }
+    // win
+    if(bricks.every(r=>r.every(b=>b.hit))){ running=false; playing=false; lockScroll(false); return; }
+  }
+  function loop(){ if(!running) { draw(); return; } rafId=requestAnimationFrame(loop); step(); draw(); }
+  function onShow(){ resize(); }
+  // controls
+  window.addEventListener('resize', ()=>{ if(current==='breakout') resize(); });
+  qs('#brkStart').onclick=reset;
+  window.addEventListener('keydown', e=>{ if(current!=='breakout') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); keys[e.key]=true; }});
+  window.addEventListener('keyup', e=>{ if(current!=='breakout') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ keys[e.key]=false; }});
+  // mouse/touch move
+  function moveTo(x){ const r=canvas.getBoundingClientRect(); paddle.x=Math.max(paddle.w/2, Math.min(w-paddle.w/2, x-r.left)); }
+  canvas.addEventListener('mousemove', e=>{ if(current!=='breakout') return; moveTo(e.clientX); });
+  canvas.addEventListener('touchstart', e=>{ if(current!=='breakout') return; e.preventDefault(); if(e.touches[0]) moveTo(e.touches[0].clientX); }, {passive:false});
+  canvas.addEventListener('touchmove',  e=>{ if(current!=='breakout') return; e.preventDefault(); if(e.touches[0]) moveTo(e.touches[0].clientX); }, {passive:false});
   return { onShow };
 })();
 
-/* --- 5) Tic-Tac-Toe --- */
+/* --- 5) Tic-Tac-Toe (minimax + clear X/O) --- */
 GAMES.ttt=(function(){
   const grid=qs('#tttGrid'); const msg=qs('#tttMsg'); let board, human='X', ai='O', over=false;
   function reset(){ board=Array(9).fill(''); over=false; render(); msg.textContent='Your turn (X)'; }
-  function render(){ grid.innerHTML=''; board.forEach((v,i)=>{ const b=document.createElement('button'); b.className='cell'; b.style.cssText='width:120px;height:120px;font-size:46px;border:none;border-radius:16px;background:rgba(255,255,255,0.25);color:#fff;font-weight:900;box-shadow:var(--shadow)'; b.textContent=v; b.onclick=()=>move(i); grid.appendChild(b); }); }
-  function move(i){ if(over||board[i]) return; board[i]=human; if(checkEnd()) return; aiMove(); checkEnd(); }
-  function aiMove(){ let best=-1,bestScore=-Infinity; emptyIdx(board).forEach(i=>{ board[i]=ai; const s=minimax(board,false); board[i]=''; if(s>bestScore){ bestScore=s; best=i; } }); board[best]=ai; }
+  function render(){ grid.innerHTML=''; board.forEach((v,i)=>{ const b=document.createElement('button'); b.className='cell'; b.textContent=v; b.onclick=()=>move(i); grid.appendChild(b); }); }
+  function move(i){ if(over||board[i]) return; board[i]=human; render(); if(checkEnd()) return; setTimeout(()=>{ aiMove(); checkEnd(); }, 80); }
+  function aiMove(){ let best=-1,bestScore=-Infinity; emptyIdx(board).forEach(i=>{ board[i]=ai; const s=minimax(board,false); board[i]=''; if(s>bestScore){ bestScore=s; best=i; } }); if(best>=0) board[best]=ai; render(); }
   function minimax(b,turnAI){ const win=winner(b); if(win===ai) return 1; if(win===human) return -1; if(emptyIdx(b).length===0) return 0; if(turnAI){ let m=-Infinity; emptyIdx(b).forEach(i=>{ b[i]=ai; m=Math.max(m, minimax(b,false)); b[i]='';}); return m; } else { let m=Infinity; emptyIdx(b).forEach(i=>{ b[i]=human; m=Math.min(m, minimax(b,true)); b[i]='';}); return m; } }
   function emptyIdx(b){ return b.map((v,i)=>v?null:i).filter(v=>v!==null); }
   function winner(b){ const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(const [a,c,d] of L){ if(b[a]&&b[a]===b[c]&&b[a]===b[d]) return b[a]; } return null; }
-  function checkEnd(){ const w=winner(board); if(w){ msg.textContent=(w===human?'You win! 🎉':'AI wins 😼'); over=true; return true; } if(emptyIdx(board).length===0){ msg.textContent='Draw 🤝'; over=true; return true; } msg.textContent = (over?'':'Your turn (X)'); return false; }
+  function checkEnd(){ const w=winner(board); if(w){ msg.textContent=(w===human?'You win! 🎉':'AI wins 😼'); over=true; return true; } if(emptyIdx(board).length===0){ msg.textContent='Draw 🤝'; over=true; return true; } msg.textContent='Your turn (X)'; return false; }
   qs('#tttReset').onclick=reset; function onShow(){ if(!board) reset(); } return { onShow };
 })();
 
-/* Init first game's layout */
+/* Init first game layout */
 GAMES[current]?.onShow?.();
 </script>
 </body>
