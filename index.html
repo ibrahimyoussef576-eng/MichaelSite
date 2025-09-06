@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Mini Games + Daily Verse</title>
+<title>Five Mini-Games + Daily Bible Verse</title>
 <style>
 :root{
   --bg1:#4facfe; --bg2:#00f2fe;
@@ -59,24 +59,26 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
 .gameHeader h3{ margin:0; }
 .heroCanvas{ width:100%; height:520px; background: rgba(0,0,0,0.1); border-radius:14px; display:block; touch-action:none; }
 .smallCanvas{ width:100%; height:520px; background: rgba(0,0,0,0.1); border-radius:14px; display:block; touch-action:none; }
-.controlsRow{ display:flex; gap:8px; align-items:center; }
+.controlsRow{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 
 .badge{ background:#7c3aed; color:#fff; padding:4px 10px; border-radius:999px; font-weight:900 }
 .kbd{ background:rgba(255,255,255,0.25); padding:2px 6px; border-radius:6px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 
 /* Verse */
-.verseRef{ font-weight:900; margin-top:6px }
+.votdTop{ margin-top:10px; }
+.verseRef{ font-weight:900; margin-top:6px; text-align:center }
 .verseText{ font-size:1.2rem; line-height:1.5; text-align:center }
 .apiNote{ font-size:.9rem; opacity:.8; text-align:center }
-.noScroll{ overflow:hidden; }
 
+/* Scroll lock while playing */
+.noScroll{ overflow:hidden; }
 </style>
 </head>
 <body>
 <div class="bg-animated"></div>
 
 <header>
-  <h1>🎮 Five Mini‑Games + 📖 Daily Bible Verse</h1>
+  <h1>🎮 Five Mini-Games + 📖 Daily Bible Verse</h1>
   <div class="topbar">
     <button id="themeBtn">🌓 Theme</button>
   </div>
@@ -93,10 +95,13 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
 </section>
 
 <div class="container">
-  <div class="cards">
-    Pick a game below. Most games use <span class="kbd">←</span>/<span class="kbd">→</span> and <span class="kbd">Space</span> or your mouse/touch.
-      </p>
-      <p 30s</h3><span class="badge" id="catchBadge" style="display:none">×2 MODE</span></div>
+  <section id="gameArea">
+    <div class="tabs" id="tabs"></div>
+
+    <!-- 1) Shape Catch -->
+    <div class="gameWrap active" data-game="catch">
+      <div class="gameHeader">
+        <div class="left"><h3>🎯 Shape Catch — 30s</h3><span class="badge" id="catchBadge" style="display:none">×2 MODE</span></div>
         <div class="controlsRow">
           <button id="catchStart">Start</button>
           <span>Score: <strong id="catchScore">0</strong></span>
@@ -105,7 +110,7 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
         </div>
       </div>
       <canvas id="catchCanvas" class="heroCanvas"></canvas>
-      <p style="text-align:center; margin:8px 0 0">Move with <span class="kbd">←</span>/<span class="kbd">→</span> or mouse/touch.</p>
+      <p style="text-align:center; margin:8px 0 0">Move with ←/→ or drag with mouse/touch.</p>
     </div>
 
     <!-- 2) Snake -->
@@ -124,7 +129,7 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
         </div>
       </div>
       <canvas id="snakeCanvas" class="smallCanvas"></canvas>
-      <p style="text-align:center; margin:8px 0 0">Use <span class="kbd">↑</span> <span class="kbd">↓</span> <span class="kbd">←</span> <span class="kbd">→</span></p>
+      <p style="text-align:center; margin:8px 0 0">Swipe to steer on mobile.</p>
     </div>
 
     <!-- 3) Flappy Dot -->
@@ -137,7 +142,7 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
         </div>
       </div>
       <canvas id="flapCanvas" class="smallCanvas"></canvas>
-      <p style="text-align:center; margin:8px 0 0">Tap/Click or press <span class="kbd">Space</span></p>
+      <p style="text-align:center; margin:8px 0 0">Tap/Click or press Space.</p>
     </div>
 
     <!-- 4) Memory Match -->
@@ -152,10 +157,10 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
       <div id="memoryGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px; max-width:640px; margin:0 auto"></div>
     </div>
 
-    <!-- 5) Tic Tac Toe -->
+    <!-- 5) Tic-Tac-Toe -->
     <div class="gameWrap" data-game="ttt">
       <div class="gameHeader">
-        <div class="left"><h3>⭕ Tic‑Tac‑Toe (AI)</h3></div>
+        <div class="left"><h3>⭕ Tic-Tac-Toe (AI)</h3></div>
         <div class="controlsRow">
           <button id="tttReset">Reset</button>
           <span id="tttMsg">Your turn (X)</span>
@@ -170,137 +175,221 @@ footer{ text-align:center; opacity:.85; margin:10px 0 16px; font-size:1rem; font
 <footer>Have fun & be encouraged ✨</footer>
 
 <script>
-/* ========== Shared ========== */
+/* ===== Helpers & Theme ===== */
 const qs=(s,p=document)=>p.querySelector(s); const qsa=(s,p=document)=>[...p.querySelectorAll(s)];
-const themeBtn=qs('#themeBtn'); themeBtn.onclick=()=>document.body.classList.toggle('dark');
+qs('#themeBtn').onclick=()=>document.body.classList.toggle('dark');
 
-// Prevent page from moving during gameplay (mobile & desktop)
-let playing = false;
+/* Lock scrolling while a game is running */
+let playing=false;
 function lockScroll(on){ document.body.classList.toggle('noScroll', !!on); }
-function preventKeys(e){ if(!playing) return; const k=e.key; if(k===' '||k==='Spacebar'||k.startsWith('Arrow')){ e.preventDefault(); } }
+function preventKeys(e){ if(!playing) return; const k=e.key||e.code; if(k===' '||k==='Space'||k==='Spacebar'||k.startsWith('Arrow')) e.preventDefault(); }
 window.addEventListener('keydown', preventKeys, {passive:false});
-document.addEventListener('touchmove', (e)=>{ if(playing) e.preventDefault(); }, {passive:false});
+document.addEventListener('touchmove', e=>{ if(playing) e.preventDefault(); }, {passive:false});
 
-/* ========== Tabs ========== */
+/* ===== Tabs ===== */
 const games=[
   { key:'catch', label:'🎯 Shape Catch' },
   { key:'snake', label:'🐍 Snake' },
   { key:'flap',  label:'🟣 Flappy Dot' },
   { key:'memory',label:'🧠 Memory' },
-  { key:'ttt',   label:'⭕ Tic‑Tac‑Toe' },
+  { key:'ttt',   label:'⭕ Tic-Tac-Toe' },
 ];
-const tabsEl=qs('#tabs');
-let current='catch';
+const tabsEl=qs('#tabs'); let current='catch';
 function renderTabs(){
   tabsEl.innerHTML='';
   games.forEach(g=>{
-    const a=document.createElement('button'); a.className='tab'+(g.key===current?' active':''); a.textContent=g.label; a.onclick=()=>activate(g.key);
-    tabsEl.appendChild(a);
+    const b=document.createElement('button');
+    b.className='tab'+(g.key===current?' active':'');
+    b.textContent=g.label; b.onclick=()=>activate(g.key);
+    tabsEl.appendChild(b);
   });
 }
-function activate(key){ current=key; renderTabs(); qsa('.gameWrap').forEach(w=>w.classList.toggle('active', w.dataset.game===key)); if(GAMES[key]?.onShow) GAMES[key].onShow(); }
+function activate(key){ current=key; renderTabs(); qsa('.gameWrap').forEach(w=>w.classList.toggle('active', w.dataset.game===key)); GAMES[key]?.onShow?.(); }
 renderTabs();
 
-/* ========== Verse of the Day ========== */
+/* ===== Verse of the Day ===== */
 const verseEl=qs('#verse'), refEl=qs('#verseRef'), apiNote=qs('#apiNote');
 const FALLBACKS=[
   {ref:'Philippians 4:13', text:'I can do all things through Christ who strengthens me.'},
   {ref:'Luke 1:37', text:'For with God nothing will be impossible.'},
   {ref:'Psalm 46:1', text:'God is our refuge and strength, a very present help in trouble.'},
-  {ref:'Proverbs 3:5-6', text:'Trust in the LORD with all your heart, and do not lean on your own understanding. In all your ways acknowledge him, and he will make straight your paths.'},
-  {ref:'Isaiah 41:10', text:'Fear not, for I am with you; be not dismayed, for I am your God; I will strengthen you, I will help you, I will uphold you with my righteous right hand.'},
-  {ref:'Romans 8:28', text:'And we know that for those who love God all things work together for good, for those who are called according to his purpose.'},
-  {ref:'Joshua 1:9', text:'Be strong and courageous. Do not be frightened, and do not be dismayed, for the LORD your God is with you wherever you go.'},
-  {ref:'Psalm 119:105', text:'Your word is a lamp to my feet and a light to my path.'},
+  {ref:'Proverbs 3:5–6', text:'Trust in the LORD with all your heart; in all your ways acknowledge him, and he will make straight your paths.'},
+  {ref:'Isaiah 41:10', text:'Fear not, for I am with you; I will strengthen you, I will help you.'},
 ];
 function dayIndex(){ return Math.floor(Date.now()/86400000); }
 async function fetchVerse(){
-  const key='votd:'+dayIndex();
-  const cached=localStorage.getItem(key);
+  const key='votd:'+dayIndex(); const cached=localStorage.getItem(key);
   if(cached){ try{ const d=JSON.parse(cached); showVerse(d.text,d.ref,'(cached)'); return; }catch{} }
-
-  // 1) Try labs.bible.org Verse of the Day (plain text)
   try{
     const r=await fetch('https://labs.bible.org/api/?passage=votd&formatting=plain');
-    if(r.ok){ const t=await r.text(); if(t){ showVerse(t.trim(),'labs.bible.org VOTD','(live)'); localStorage.setItem(key, JSON.stringify({text:t.trim(), ref:'VOTD'})); return; } }
-  }catch(err){}
-
-  // 2) Try bible-api.com rotating references
+    if(r.ok){ const t=await r.text(); if(t){ showVerse(t.trim(),'VOTD (labs.bible.org)','(live)'); localStorage.setItem(key, JSON.stringify({text:t.trim(), ref:'VOTD'})); return; } }
+  }catch{}
   try{
     const refs=['john 3:16','psalm 23:1','philippians 4:6','matthew 6:34','isaiah 40:31','romans 12:12','psalm 91:1'];
     const ref=encodeURIComponent(refs[dayIndex()%refs.length]);
     const r=await fetch('https://bible-api.com/'+ref);
-    if(r.ok){ const j=await r.json(); if(j?.text){ showVerse(j.text.trim(), (j.reference||'Bible API'),'(live)'); localStorage.setItem(key, JSON.stringify({text:j.text.trim(), ref:j.reference||'Bible API'})); return; } }
-  }catch(err){}
-
-  // 3) Fallback local rotation
-  const f=FALLBACKS[dayIndex()%FALLBACKS.length];
-  showVerse(f.text, f.ref, '(offline)');
+    if(r.ok){ const j=await r.json(); if(j?.text){ showVerse(j.text.trim(), j.reference||'Bible', '(live)'); localStorage.setItem(key, JSON.stringify({text:j.text.trim(), ref:j.reference||'Bible'})); return; } }
+  }catch{}
+  const f=FALLBACKS[dayIndex()%FALLBACKS.length]; showVerse(f.text, f.ref, '(offline)');
 }
-function showVerse(text, ref, note){ verseEl.textContent='“'+text.replace(/^"|"$/g,'')+'”'; refEl.textContent=ref?('— '+ref):''; apiNote.textContent='Source '+(note||''); }
+function showVerse(text, ref, note){ verseEl.textContent='“'+text.replace(/^\"|\"$/g,'')+'”'; refEl.textContent=ref?('— '+ref):''; apiNote.textContent=note||''; }
 fetchVerse();
 
-/* ========== Games ========== */
+/* ===== Games ===== */
 const GAMES={};
 
-/* ----- 1) Shape Catch ----- */
+/* --- 1) Shape Catch --- */
 GAMES.catch=(function(){
   const canvas=qs('#catchCanvas'); const scoreEl=qs('#catchScore'); const timeEl=qs('#catchTime'); const bestEl=qs('#catchBest'); const badge=qs('#catchBadge');
-  let ctx,w,h,rafId,running=false,tLeft=30,score=0,best=+localStorage.getItem('catchBest')||0; best
+  let ctx,w,h,rafId,running=false,tLeft=30,score=0,best=+localStorage.getItem('catchBest')||0; bestEl.textContent=best;
+  let catcher,drops=[],lastSpawn=0,flashUntil=0,doubleUntil=0; let keys={};
+  const COLORS=["#22d3ee","#60a5fa","#f472b6","#34d399","#fbbf24","#f87171","#a78bfa"];
+  function isDouble(){ return performance.now()<doubleUntil; }
+  function resize(){ const DPR=window.devicePixelRatio||1; w=canvas.clientWidth; h=canvas.clientHeight; canvas.width=w*DPR; canvas.height=h*DPR; ctx=canvas.getContext('2d'); ctx.setTransform(DPR,0,0,DPR,0,0); catcher={x:w/2,y:h-26,w:Math.max(90,w*0.2),h:16}; }
+  function start(){ running=true; playing=true; lockScroll(true); tLeft=30; score=0; scoreEl.textContent=score; timeEl.textContent=tLeft; drops=[]; lastSpawn=performance.now(); doubleUntil=0; badge.style.display='none'; loop(performance.now()); tick(); }
+  function spawn(){ const dm=isDouble(); const r=Math.random()*100; let kind,value,color;
+    if((!dm&&r<10)||(dm&&r<15)){kind='double';value=2;color='#a855f7';}
+    else if((!dm&&r<30)||(dm&&r<50)){kind='bomb';value=-3;color='#111';}
+    else if(r<95){kind='good';value=1;color=COLORS[Math|Math.random()*COLORS.length];}
+    else {kind='rare';value=3;color='#ffd166';}
+    let size,vy;
+    if(kind==='double'){size=10+Math.random()*5; vy=3.6+Math.random()*2.2;}
+    else if(kind==='bomb'){size=16+Math.random()*10; vy=2.4+Math.random()*2.6;}
+    else if(kind==='rare'){size=16+Math.random()*10; vy=2.4+Math.random()*2.4;}
+    else {size=14+Math.random()*8; vy=2.2+Math.random()*2.2;}
+    if(dm) vy*=1.15; drops.push({kind,value,color,x:Math.random()*w,y:-30,vy,size});
+  }
+  function roundRect(x,y,ww,hh,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+ww,y,x+ww,y+hh,r); ctx.arcTo(x+ww,y+hh,x,y+hh,r); ctx.arcTo(x,y+hh,x,y,r); ctx.arcTo(x,y,x+ww,y,r); ctx.closePath(); }
+  function drawItem(d){
+    ctx.save(); ctx.translate(d.x,d.y);
+    if(d.kind==='bomb'){
+      ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(0,0,d.size*0.9,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#fffb'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(d.size*0.4,-d.size*0.9);
+      ctx.bezierCurveTo(d.size*0.6,-d.size*1.4,d.size*0.9,-d.size*1.3,d.size*1.1,-d.size*1.0); ctx.stroke();
+      ctx.fillStyle='#ff4d4d'; ctx.beginPath(); ctx.arc(d.size*1.15,-d.size*1.05,3.2,0,Math.PI*2); ctx.fill();
+    } else if(d.kind==='rare'){
+      ctx.fillStyle=d.color; const R=d.size,r=R*0.45; ctx.beginPath();
+      for(let i=0;i<10;i++){ const a=i*Math.PI/5,rad=i%2===0?R:r; ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad); }
+      ctx.closePath(); ctx.shadowColor='#0006'; ctx.shadowBlur=10; ctx.fill();
+    } else if(d.kind==='double'){
+      ctx.fillStyle=d.color; const s=d.size,rr=s*0.35; roundRect(-s,-s,s*2,s*2,rr); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font=`${Math.max(10,Math.round(s*1.3))}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('×2',0,0);
+    } else {
+      ctx.fillStyle=d.color; const s=d.size,rr=s*0.35; roundRect(-s,-s,s*2,s*2,rr); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font=`${Math.round(s*1.5)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('M',0,0);
+    }
+    ctx.restore();
+  }
+  function drawCatcher(){ ctx.save(); ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fillRect(catcher.x-catcher.w/2, catcher.y-catcher.h/2, catcher.w, catcher.h); ctx.restore(); }
+  function loop(now){
+    if(!running) return; rafId=requestAnimationFrame(loop);
+    const dm=isDouble(); const interval=dm?200:260; if(now-lastSpawn>interval+Math.random()*220){ spawn(); lastSpawn=now; }
+    const speed=7+(dm?0.5:0); if(keys['ArrowLeft']) catcher.x-=speed; if(keys['ArrowRight']) catcher.x+=speed;
+    catcher.x=Math.max(catcher.w/2,Math.min(w-catcher.w/2,catcher.x));
+    ctx.clearRect(0,0,w,h); if(flashUntil>performance.now()){ ctx.fillStyle='rgba(255,0,0,0.15)'; ctx.fillRect(0,0,w,h); }
+    drawCatcher();
+    for(let i=drops.length-1;i>=0;i--){
+      const d=drops[i]; d.y+=d.vy; drawItem(d);
+      const withinX=Math.abs(d.x-catcher.x)<(catcher.w/2);
+      const withinY=Math.abs(d.y-catcher.y)<(catcher.h+Math.max(10,d.size*0.6));
+      if(withinX&&withinY){
+        drops.splice(i,1);
+        if(d.kind==='double'){ score+=2; doubleUntil=performance.now()+7000; badge.style.display='inline-block'; try{navigator.vibrate&&navigator.vibrate([50,40,80]);}catch{} }
+        else { const mult=isDouble()?2:1; score+=d.value*mult; if(d.value<0){ flashUntil=performance.now()+200; try{navigator.vibrate&&navigator.vibrate(120);}catch{} } }
+        if(score<0) score=0; scoreEl.textContent=score; continue;
+      }
+      if(d.y>h+40) drops.splice(i,1);
+    }
+    if(!isDouble()) badge.style.display='none';
+  }
+  function tick(){ if(!running) return; setTimeout(()=>{ tLeft--; timeEl.textContent=tLeft; if(tLeft<=0){ running=false; playing=false; lockScroll(false); if(score>best){ best=score; localStorage.setItem('catchBest',best);} bestEl.textContent=best; } else tick(); },1000); }
+  function onShow(){ resize(); }
+  window.addEventListener('resize', ()=>{ if(current==='catch') resize();});
+  window.addEventListener('keydown', e=>{ if(current!=='catch') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); keys[e.key]=true; }});
+  window.addEventListener('keyup',   e=>{ if(current!=='catch') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ keys[e.key]=false; }});
+  canvas.addEventListener('mousemove', e=>{ if(current!=='catch') return; const r=canvas.getBoundingClientRect(); const x=Math.max(0,Math.min(w,e.clientX-r.left)); catcher&&(catcher.x=x);});
+  canvas.addEventListener('touchstart', e=>{ if(current!=='catch') return; e.preventDefault(); const t=e.touches[0]; if(!t) return; const r=canvas.getBoundingClientRect(); const x=Math.max(0,Math.min(w,t.clientX-r.left)); catcher&&(catcher.x=x);},{passive:false});
+  canvas.addEventListener('touchmove',  e=>{ if(current!=='catch') return; e.preventDefault(); const t=e.touches[0]; if(!t) return; const r=canvas.getBoundingClientRect(); const x=Math.max(0,Math.min(w,t.clientX-r.left)); catcher&&(catcher.x=x);},{passive:false});
+  qs('#catchStart').onclick=start;
+  return { onShow };
+})();
 
-/* ----- 2) Snake ----- */
+/* --- 2) Snake --- */
 GAMES.snake=(function(){
-  const canvas=qs('#snakeCanvas'); const scoreEl=qs('#snakeScore'); let ctx,w,h,grid=20,dir={x:1,y:0},snake,food,alive=false,loopId;
+  const canvas=qs('#snakeCanvas'); const scoreEl=qs('#snakeScore');
+  let ctx,w,h,grid=20,dir={x:1,y:0},snake,food,alive=false,loopId,touchStart=null;
   function resize(){ const DPR=window.devicePixelRatio||1; w=canvas.clientWidth; h=canvas.clientHeight; canvas.width=w*DPR; canvas.height=h*DPR; ctx=canvas.getContext('2d'); ctx.setTransform(DPR,0,0,DPR,0,0); }
-  function reset(){ snake=[{x:5,y:5}]; dir={x:1,y:0}; spawnFood(); scoreEl.textContent='0'; alive=true; step(); }
+  function reset(){ snake=[{x:5,y:5}]; dir={x:1,y:0}; spawnFood(); scoreEl.textContent='0'; alive=true; playing=true; lockScroll(true); step(); }
   function spawnFood(){ food={ x: Math.floor(Math.random()*(w/grid-2))+1, y: Math.floor(Math.random()*(h/grid-2))+1 } }
-  function step(){ if(!alive) return; loopId=setTimeout(step, 80); const head={x:snake[0].x+dir.x, y:snake[0].y+dir.y}; if(head.x<0||head.y<0||head.x>=(w/grid)||head.y>=(h/grid)|| snake.some((s)=>s.x===head.x&&s.y===head.y)){ alive=false; return; } snake.unshift(head); if(head.x===food.x && head.y===food.y){ scoreEl.textContent=String(+scoreEl.textContent+1); spawnFood(); } else snake.pop(); draw(); }
+  function step(){ if(!alive) return; loopId=setTimeout(step, 90);
+    const head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+    if(head.x<0||head.y<0||head.x>=(w/grid)||head.y>=(h/grid)|| snake.some(s=>s.x===head.x&&s.y===head.y)){ alive=false; playing=false; lockScroll(false); return; }
+    snake.unshift(head);
+    if(head.x===food.x && head.y===food.y){ scoreEl.textContent=String(+scoreEl.textContent+1); spawnFood(); } else snake.pop();
+    draw();
+  }
   function draw(){ ctx.clearRect(0,0,w,h); ctx.fillStyle='rgba(0,0,0,0.35)'; snake.forEach(s=>ctx.fillRect(s.x*grid, s.y*grid, grid-2, grid-2)); ctx.fillStyle='#10b981'; ctx.fillRect(food.x*grid, food.y*grid, grid-2, grid-2); }
   function onShow(){ resize(); draw(); }
   window.addEventListener('resize', ()=>{ if(current==='snake') { resize(); draw(); }});
   qs('#snakeStart').onclick=reset;
   window.addEventListener('keydown', e=>{
-    if(current!=='snake') return; const k=e.key; if(k==='ArrowUp'&&dir.y!==1) dir={x:0,y:-1}; else if(k==='ArrowDown'&&dir.y!==-1) dir={x:0,y:1}; else if(k==='ArrowLeft'&&dir.x!==1) dir={x:-1,y:0}; else if(k==='ArrowRight'&&dir.x!==-1) dir={x:1,y:0};
+    if(current!=='snake') return;
+    const k=e.key;
+    if(k==='ArrowUp'&&dir.y!==1) dir={x:0,y:-1};
+    else if(k==='ArrowDown'&&dir.y!==-1) dir={x:0,y:1};
+    else if(k==='ArrowLeft'&&dir.x!==1) dir={x:-1,y:0};
+    else if(k==='ArrowRight'&&dir.x!==-1) dir={x:1,y:0};
   });
+  // Touch swipe
+  canvas.addEventListener('touchstart', e=>{ if(current!=='snake') return; const t=e.touches[0]; if(!t) return; touchStart={x:t.clientX,y:t.clientY}; }, {passive:true});
+  canvas.addEventListener('touchmove',  e=>{ if(current!=='snake'||!touchStart) return; e.preventDefault(); const t=e.touches[0]; if(!t) return;
+    const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y; const ax=Math.abs(dx), ay=Math.abs(dy);
+    if(Math.max(ax,ay)>22){ if(ax>ay){ if(dx>0&&dir.x!==-1) dir={x:1,y:0}; else if(dx<0&&dir.x!==1) dir={x:-1,y:0}; } else { if(dy>0&&dir.y!==-1) dir={x:0,y:1}; else if(dy<0&&dir.y!==1) dir={x:0,y:-1}; } touchStart={x:t.clientX,y:t.clientY}; }
+  }, {passive:false});
+  // On-screen arrows
+  qs('#snakeUp').onclick=()=>{ if(dir.y!==1) dir={x:0,y:-1}; };
+  qs('#snakeDown').onclick=()=>{ if(dir.y!==-1) dir={x:0,y:1}; };
+  qs('#snakeLeft').onclick=()=>{ if(dir.x!==1) dir={x:-1,y:0}; };
+  qs('#snakeRight').onclick=()=>{ if(dir.x!==-1) dir={x:1,y:0}; };
   return { onShow };
 })();
 
-/* ----- 3) Flappy Dot ----- */
+/* --- 3) Flappy Dot --- */
 GAMES.flap=(function(){
-  const canvas=qs('#flapCanvas'); const scoreEl=qs('#flapScore'); let ctx,w,h; let y,vy,gapX,pipes=[],score,loopId,alive=false; const G=0.45, JUMP=-7.2;
+  const canvas=qs('#flapCanvas'); const scoreEl=qs('#flapScore');
+  let ctx,w,h; let y,vy,gapX,pipes=[],score,alive=false; const G=0.45, JUMP=-7.2;
   function resize(){ const DPR=window.devicePixelRatio||1; w=canvas.clientWidth; h=canvas.clientHeight; canvas.width=w*DPR; canvas.height=h*DPR; ctx=canvas.getContext('2d'); ctx.setTransform(DPR,0,0,DPR,0,0); if(!alive) draw(); }
-  function reset(){ y=h/2; vy=0; pipes=[]; score=0; scoreEl.textContent='0'; gapX=0; alive=true; step(); }
+  function reset(){ y=h/2; vy=0; pipes=[]; score=0; scoreEl.textContent='0'; gapX=0; alive=true; playing=true; lockScroll(true); step(); }
   function addPipe(){ const gap=140; const top=Math.random()*(h-gap-80)+40; pipes.push({ x:w+20, top:top, bottom:top+gap }); }
-  function step(){ if(!alive) return; loopId=requestAnimationFrame(step); ctx.clearRect(0,0,w,h); // physics
-    vy+=G; y+=vy; if(y>h-10||y<10){ alive=false; return; }
-    // pipes
+  function step(){ if(!alive) return; requestAnimationFrame(step); ctx.clearRect(0,0,w,h);
+    vy+=G; y+=vy; if(y>h-10||y<10){ alive=false; playing=false; lockScroll(false); return; }
     if(gapX<=0){ addPipe(); gapX=180; } gapX--; pipes.forEach(p=>p.x-=3.2); pipes=pipes.filter(p=>p.x>-60);
-    // draw pipes
     ctx.fillStyle='rgba(0,0,0,0.35)'; pipes.forEach(p=>{ ctx.fillRect(p.x,0,50,p.top); ctx.fillRect(p.x,p.bottom,50,h-p.bottom); });
-    // collision + score
-    pipes.forEach(p=>{ if(p.x+50<y&&!p.counted){ p.counted=true; score++; scoreEl.textContent=String(score);} const withinX=(p.x<100 && p.x+50>60); if(withinX && (y-10<p.top || y+10>p.bottom)) alive=false; });
-    // bird
+    pipes.forEach(p=>{ if(p.x+50<y&&!p.counted){ p.counted=true; score++; scoreEl.textContent=String(score);} const withinX=(p.x<100 && p.x+50>60); if(withinX && (y-10<p.top || y+10>p.bottom)) { alive=false; playing=false; lockScroll(false);} });
     ctx.beginPath(); ctx.arc(80,y,10,0,Math.PI*2); ctx.fillStyle='#8b5cf6'; ctx.fill();
   }
   function flap(){ if(current!=='flap') return; vy=JUMP; }
   function onShow(){ resize(); }
   window.addEventListener('resize', ()=>{ if(current==='flap') resize(); });
-  qs('#flapStart').onclick=reset; window.addEventListener('keydown', e=>{ if(e.code==='Space') flap();}); canvas.addEventListener('mousedown', flap); canvas.addEventListener('touchstart', e=>{e.preventDefault(); flap();},{passive:false});
+  qs('#flapStart').onclick=reset;
+  window.addEventListener('keydown', e=>{ if(current==='flap' && (e.code==='Space'||e.key===' ')){ e.preventDefault(); flap(); }});
+  canvas.addEventListener('mousedown', flap);
+  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); flap(); }, {passive:false});
   return { onShow };
 })();
 
-/* ----- 4) Memory Match ----- */
+/* --- 4) Memory Match --- */
 GAMES.memory=(function(){
-  const grid=qs('#memoryGrid'); const movesEl=qs('#memMoves'); const EMOJI='🐶🐱🦊🐼🐯🐷🦁🐵'.split(''); let tiles=[],sel=[],moves=0,locked=false,matched=0;
+  const grid=qs('#memoryGrid'); const movesEl=qs('#memMoves');
+  const EMOJI='🐶🐱🦊🐼🐯🐷🦁🐵'.split(''); let tiles=[],sel=[],moves=0,locked=false,matched=0;
   function reset(){ const deck=[...EMOJI,...EMOJI].sort(()=>Math.random()-0.5).map((e,i)=>({id:i,emoji:e,open:false,done:false})); tiles=deck; sel=[]; moves=0; matched=0; movesEl.textContent='0'; render(); }
   function clickTile(t){ if(locked||t.done||t.open) return; t.open=true; sel.push(t); render(); if(sel.length===2){ locked=true; moves++; movesEl.textContent=String(moves); setTimeout(()=>{ const [a,b]=sel; if(a.emoji===b.emoji){ a.done=b.done=true; matched+=2; } a.open=b.open=false; sel=[]; locked=false; render(); },600); } }
-  function render(){ grid.innerHTML=''; tiles.forEach(t=>{ const btn=document.createElement('button'); btn.className='tile'; btn.style.cssText='aspect-ratio:1/1;border:none;border-radius:14px;box-shadow:var(--shadow);background:'+ (t.open||t.done?'#8b5cf6':'rgba(255,255,255,0.25)') +';color:#fff;font-size:34px;font-weight:900;'; btn.textContent= t.open||t.done? t.emoji : '❓'; btn.onclick=()=>clickTile(t); grid.appendChild(btn); }); if(matched===tiles.length && tiles.length){ setTimeout(()=>alert('Nice! Completed in '+moves+' moves.'), 10); }
-  }
+  function render(){ grid.innerHTML=''; tiles.forEach(t=>{ const btn=document.createElement('button'); btn.className='tile'; btn.style.cssText='aspect-ratio:1/1;border:none;border-radius:14px;box-shadow:var(--shadow);background:'+ (t.open||t.done?'#8b5cf6':'rgba(255,255,255,0.25)') +';color:#fff;font-size:34px;font-weight:900;'; btn.textContent= t.open||t.done? t.emoji : '❓'; btn.onclick=()=>clickTile(t); grid.appendChild(btn); }); if(matched===tiles.length && tiles.length){ setTimeout(()=>alert('Nice! Completed in '+moves+' moves.'), 10); } }
   qs('#memStart').onclick=reset; function onShow(){ if(!tiles.length) reset(); }
   return { onShow };
 })();
 
-/* ----- 5) Tic‑Tac‑Toe (minimax) ----- */
+/* --- 5) Tic-Tac-Toe --- */
 GAMES.ttt=(function(){
   const grid=qs('#tttGrid'); const msg=qs('#tttMsg'); let board, human='X', ai='O', over=false;
   function reset(){ board=Array(9).fill(''); over=false; render(); msg.textContent='Your turn (X)'; }
@@ -311,11 +400,10 @@ GAMES.ttt=(function(){
   function emptyIdx(b){ return b.map((v,i)=>v?null:i).filter(v=>v!==null); }
   function winner(b){ const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(const [a,c,d] of L){ if(b[a]&&b[a]===b[c]&&b[a]===b[d]) return b[a]; } return null; }
   function checkEnd(){ const w=winner(board); if(w){ msg.textContent=(w===human?'You win! 🎉':'AI wins 😼'); over=true; return true; } if(emptyIdx(board).length===0){ msg.textContent='Draw 🤝'; over=true; return true; } msg.textContent = (over?'':'Your turn (X)'); return false; }
-  qs('#tttReset').onclick=reset; function onShow(){ if(!board) reset(); }
-  return { onShow };
+  qs('#tttReset').onclick=reset; function onShow(){ if(!board) reset(); } return { onShow };
 })();
 
-// Init first game's layout
+/* Init first game's layout */
 GAMES[current]?.onShow?.();
 </script>
 </body>
