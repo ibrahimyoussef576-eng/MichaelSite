@@ -361,25 +361,74 @@ function activate(key){ current=key; renderTabs(); qsa('.gameWrap').forEach(w=>w
 renderTabs();
 
 /* ===== Verse (unchanged) ===== */
-const verseEl=qs('#verse'), refEl=qs('#verseRef'), apiNote=qs('#apiNote');
-const FALLBACKS=[
-  {ref:'Philippians 4:13', text:'I can do all things through Christ who strengthens me.'},
-  {ref:'Luke 1:37', text:'For with God nothing will be impossible.'},
-  {ref:'Psalm 46:1', text:'God is our refuge and strength, a very present help in trouble.'},
-  {ref:'Proverbs 3:5–6', text:'Trust in the LORD with all your heart; in all your ways acknowledge him, and he will make straight your paths.'},
-  {ref:'Isaiah 41:10', text:'Fear not, for I am with you; I will strengthen you, I will help you.'},
-];
-function dayIndex(){ return Math.floor(Date.now()/86400000); }
-async function fetchVerse(){
-  const key='votd:'+dayIndex(); const cached=localStorage.getItem(key);
-  if(cached){ try{ const d=JSON.parse(cached); showVerse(d.text,d.ref); return; }catch{} }
-  try{ const r=await fetch('https://labs.bible.org/api/?passage=votd&formatting=plain'); if(r.ok){ const t=await r.text(); if(t){ showVerse(t.trim(),'VOTD'); localStorage.setItem(key, JSON.stringify({text:t.trim(), ref:'VOTD'})); return; } } }catch{}
-  try{ const refs=['john 3:16','psalm 23:1','philippians 4:6','matthew 6:34','isaiah 40:31','romans 12:12','psalm 91:1']; const ref=encodeURIComponent(refs[dayIndex()%refs.length]); const r=await fetch('https://bible-api.com/'+ref); if(r.ok){ const j=await r.json(); if(j?.text){ showVerse(j.text.trim(), j.reference||'Bible'); localStorage.setItem(key, JSON.stringify({text:j.text.trim(), ref:j.reference||'Bible'})); return; } } }catch{}
-  const f=FALLBACKS[dayIndex()%FALLBACKS.length]; showVerse(f.text, f.ref);
-}
-function showVerse(text, ref){ verseEl.textContent='“'+text.replace(/^\"|\"$/g,'')+'”'; refEl.textContent=ref?('— '+ref):''; }
-fetchVerse();
+<script>
+// ===== Daily “Time on Earth” Verses =====
+const verseEl = document.querySelector('#verse');
+const refEl   = document.querySelector('#verseRef');
+const apiNote = document.querySelector('#apiNote'); // leave blank
 
+// Curated verses about time / brevity of life
+const TIME_VERSES = [
+  { ref:'Psalm 90:12',    text:'Teach us to number our days, that we may gain a heart of wisdom.' },
+  { ref:'James 4:14',     text:'You are a mist that appears for a little time and then vanishes.' },
+  { ref:'Ephesians 5:16', text:'Making the best use of the time, because the days are evil.' },
+  { ref:'Psalm 39:4',     text:'O LORD, make me know my end and what is the measure of my days.' },
+  { ref:'Psalm 39:5',     text:'Surely all mankind stands as a mere breath.' },
+  { ref:'Psalm 144:4',    text:'Man is like a breath; his days are like a passing shadow.' },
+  { ref:'Ecclesiastes 3:1', text:'For everything there is a season, and a time for every matter under heaven.' },
+  { ref:'Job 14:5',       text:'Man’s days are determined; the number of his months is with You.' },
+  { ref:'Psalm 102:11',   text:'My days are like an evening shadow; I wither away like grass.' },
+  { ref:'1 Peter 1:24',   text:'All flesh is like grass… the grass withers and the flower falls.' },
+  { ref:'Isaiah 40:8',    text:'The grass withers, the flower fades, but the word of our God will stand forever.' },
+  { ref:'Colossians 4:5', text:'Walk in wisdom toward outsiders, making the best use of the time.' },
+  { ref:'Romans 13:11',   text:'The hour has come for you to wake from sleep. Salvation is nearer now.' },
+  { ref:'2 Corinthians 6:2', text:'Now is the favorable time; behold, now is the day of salvation.' },
+  { ref:'Hebrews 9:27',   text:'It is appointed for man to die once, and after that comes judgment.' },
+  { ref:'Proverbs 27:1',  text:'Do not boast about tomorrow, for you do not know what a day may bring.' },
+  { ref:'Psalm 31:15',    text:'My times are in Your hand.' },
+  { ref:'Psalm 103:15-16',text:'As for man, his days are like grass; he flourishes like a flower of the field.' },
+  { ref:'1 Chronicles 29:15', text:'Our days on the earth are like a shadow, and there is no abiding.' },
+  { ref:'Psalm 89:47',    text:'Remember how short my time is!' },
+  { ref:'Ecclesiastes 12:1', text:'Remember your Creator in the days of your youth.' },
+  { ref:'2 Peter 3:8',    text:'With the Lord one day is as a thousand years, and a thousand years as one day.' },
+  { ref:'John 9:4',       text:'We must work the works of Him who sent me while it is day.' },
+  { ref:'Psalm 90:10',    text:'The years of our life are seventy, or by reason of strength eighty; they are soon gone.' }
+];
+
+const MS_PER_DAY = 24*60*60*1000;
+const dayIndex = () => Math.floor(Date.now() / MS_PER_DAY);
+
+function showTimeVerseForToday() {
+  const idx = dayIndex() % TIME_VERSES.length;
+  const v = TIME_VERSES[idx];
+  verseEl.textContent = `“${v.text}”`;
+  refEl.textContent   = `— ${v.ref}`;
+  apiNote.textContent = ''; // no API note
+  localStorage.setItem('time_votd_day', String(dayIndex()));
+}
+
+function scheduleMidnightRefresh() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24,0,0,0);
+  setTimeout(() => {
+    showTimeVerseForToday();
+    scheduleMidnightRefresh();
+  }, midnight - now);
+}
+
+// Init on load
+(function initTimeVOTD(){
+  const lastDay = Number(localStorage.getItem('time_votd_day') || -1);
+  if (lastDay !== dayIndex()) {
+    showTimeVerseForToday();
+  } else {
+    showTimeVerseForToday();
+  }
+  scheduleMidnightRefresh();
+})();
+</script>
+<script>
 /* ===== Games ===== */
 const GAMES={};
 
