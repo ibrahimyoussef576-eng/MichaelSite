@@ -17,7 +17,7 @@
   --text:#e5e7eb; --cardText:#e5e7eb; --accent:#ffd54f;
 }
 *{box-sizing:border-box}
-html,body{height:100%; overscroll-behavior:none;}
+html,body{height:100%; overscroll-behavior:auto;}
 body{ margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; color:var(--text); overflow-x:hidden; }
 .bg-animated{ position:fixed; inset:0; z-index:-3; background: linear-gradient(135deg, var(--bg1), var(--bg2)); background-size: 200% 200%; animation: grad 18s ease-in-out infinite; }
 @keyframes grad{ 0%{background-position:0% 0%} 50%{background-position:100% 100%} 100%{background-position:0% 0%} }
@@ -53,16 +53,11 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
 .heroCanvas,.smallCanvas{ width:100%; height:520px; background: rgba(0,0,0,0.1); border-radius:14px; display:block; touch-action:none; }
 .controlsRow{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .badge{ background:#7c3aed; color:#fff; padding:4px 10px; border-radius:999px; font-weight:900 }
-.kbd{ background:rgba(255,255,255,0.25); padding:2px 6px; border-radius:6px; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
-/* Verse */
 .votdTop{ margin-top:10px; }
 .verseRef{ font-weight:900; margin-top:6px; text-align:center }
 .verseText{ font-size:1.2rem; line-height:1.5; text-align:center }
 .apiNote{ font-size:.9rem; opacity:.8; text-align:center }
-
-/* Scroll lock while playing */
-.noScroll{ overflow:hidden; }
 
 /* TicTacToe cells */
 .cell{
@@ -79,10 +74,16 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
 .lbControls{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-top:8px; }
 .lb-meta{ opacity:.85; font-size:.9em; }
 .nameBtn{ background: rgba(255,255,255,0.22); border:none; border-radius:10px; padding:6px 10px; cursor:pointer; font-weight:800; }
+
+/* Celebration overlay */
+#celebrate{ position:fixed; inset:0; pointer-events:none; z-index:20; }
+#toast{ position:fixed; left:50%; top:18px; transform:translateX(-50%); background:#111a; color:#fff; padding:10px 14px; border-radius:12px; font-weight:900; backdrop-filter:blur(6px); z-index:21; display:none; }
 </style>
 </head>
 <body>
 <div class="bg-animated"></div>
+<canvas id="celebrate"></canvas>
+<div id="toast"></div>
 
 <header>
   <h1>🎮 Arcade + 📖 Daily Bible Verse</h1>
@@ -92,7 +93,6 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
   </div>
 </header>
 
-<!-- Verse at top center -->
 <section class="votdTop">
   <article class="card" style="max-width:min(820px,96vw);margin:10px auto;">
     <h2>📖 Verse of the Day</h2>
@@ -102,7 +102,6 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
   </article>
 </section>
 
-<!-- Leaderboard -->
 <section id="leaderboard">
   <h3>🏆 Global Leaderboard</h3>
   <div class="lbControls">
@@ -134,7 +133,7 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
           <span>Score: <strong id="catchScore">0</strong></span>
           <span>Time: <strong id="catchTime">30</strong>s</span>
           <span>Best: <strong id="catchBest">0</strong></span>
-          <span class="badge" id="catchBadge" style="display:none">×2 MODE</span>
+          <span class="badge" id="catchBadge" style="display:none">×2</span>
           <span class="badge" id="catchSlow" style="display:none">SLOW</span>
           <span class="badge" id="catchShield" style="display:none">SHIELD</span>
         </div>
@@ -153,7 +152,6 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
         </div>
       </div>
       <canvas id="snakeCanvas" class="smallCanvas"></canvas>
-      <p style="text-align:center; margin:8px 0 0">Use arrows or swipe to steer.</p>
     </div>
 
     <!-- 3) Flappy Dot -->
@@ -166,7 +164,6 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
         </div>
       </div>
       <canvas id="flapCanvas" class="smallCanvas"></canvas>
-      <p style="text-align:center; margin:8px 0 0">Tap/Click or press Space.</p>
     </div>
 
     <!-- 4) Breakout -->
@@ -181,7 +178,6 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
         </div>
       </div>
       <canvas id="brkCanvas" class="smallCanvas"></canvas>
-      <p style="text-align:center; margin:8px 0 0">Move with ←/→ or drag with mouse/touch.</p>
     </div>
 
     <!-- 5) Tic-Tac-Toe -->
@@ -206,18 +202,15 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
   </section>
 </div>
 
-<!-- (no footer text) -->
-
 <!-- ===== Firebase (module) ===== -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js";
   import {
     getFirestore, collection, addDoc, serverTimestamp,
-    query, orderBy, limit, getDocs, where
+    query, orderBy, limit, getDocs
   } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-  /* Your existing project config */
   const firebaseConfig = {
     apiKey: "AIzaSyDAyKfDDVeZpidguVlhSzjXzXD0Ixv5DTo",
     authDomain: "countdown-87ab5.firebaseapp.com",
@@ -231,7 +224,14 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
   const app = initializeApp(firebaseConfig);
   getAnalytics(app);
   const db  = getFirestore(app);
-  const scoresCol = collection(db, "scores");
+
+  // === per-game collections (avoids composite index requirement)
+  const colMap = {
+    catch:    collection(db, "scores_catch"),
+    breakout: collection(db, "scores_breakout"),
+    flap:     collection(db, "scores_flap"),
+    snake:    collection(db, "scores_snake"),
+  };
 
   const NAME_KEY = "arcadePlayerName";
   function esc(s){ return (s||"").replace(/[&<>\"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;" }[m])); }
@@ -239,77 +239,63 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
   function setName(n){ localStorage.setItem(NAME_KEY, n); }
   window.getName = getName; window.setName = setName;
 
-  // Get best score for a name + game
-  async function fetchBestFor(name, game){
-    const snap = await getDocs(query(scoresCol, where("name","==",name), where("game","==",game), limit(100)));
+  // Best for a name within one game collection
+  async function fetchBestFor(colRef, name){
+    const snap = await getDocs(query(colRef, orderBy("score","desc"), limit(300)));
     let best = 0;
     snap.forEach(doc=>{
       const d = doc.data();
-      if (typeof d.score === "number" && d.score > best) best = d.score;
+      if ((d.name||"") === name && typeof d.score === "number" && d.score > best) best = d.score;
     });
     return best;
   }
 
-  // Add a score only if it's higher than this name's previous best for that game
-  async function addScoreIfBest(name, game, score){
-    try{
-      const cleanName = (name || "Anonymous").toString().trim().slice(0,20);
-      if (!cleanName) return;
-      const safeScore = Math.max(0, Math.min(999999, Number(score) || 0));
-      const prevBest = await fetchBestFor(cleanName, game);
-      if (safeScore <= prevBest) { await renderLB(); return; }
-      await addDoc(scoresCol, {
-        name: cleanName,
-        game,
-        score: safeScore,
-        createdAt: serverTimestamp()
-      });
-      await renderLB();
-    }catch(err){
-      console.error("Failed to submit score:", err);
-      alert("Could not submit score right now. Try again later.");
-    }
+  // Add score only if higher than that name's previous best
+  async function addScoreIfBest(gameKey, name, score){
+    const colRef = colMap[gameKey];
+    if(!colRef) return;
+    const cleanName = (name||"").trim().slice(0,20);
+    if(!cleanName) return;
+
+    const prevBest = await fetchBestFor(colRef, cleanName);
+    if(score <= prevBest){ await renderLB(); return {isPB:false, prevBest}; }
+
+    await addDoc(colRef, {
+      name: cleanName,
+      score: Math.max(0, Math.min(999999, Number(score)||0)),
+      createdAt: serverTimestamp()
+    });
+    await renderLB();
+    return {isPB:true, prevBest};
   }
   window.addScoreIfBest = addScoreIfBest;
 
   async function renderLB(){
     const list = document.getElementById("lbList");
     const meta = document.getElementById("lbMeta");
-    const gameSel = document.getElementById("lbGame");
-    const game = gameSel.value;
+    const game = document.getElementById("lbGame").value;
+    const colRef = colMap[game];
     list.innerHTML = "<li>Loading…</li>";
     try{
-      // Pull top 300 for the game, then dedupe by name (keep highest)
-      const snap = await getDocs(query(scoresCol, where("game","==",game), orderBy("score","desc"), limit(300)));
-      const bestPerName = new Map();
+      const snap = await getDocs(query(colRef, orderBy("score","desc"), limit(400)));
+      // dedupe by name (keep highest)
+      const bestByName = new Map();
       snap.forEach(doc=>{
-        const d = doc.data();
-        const nm = (d.name || "Anonymous").toString();
-        const sc = Number(d.score) || 0;
+        const d = doc.data(); const nm=(d.name||"Anonymous").toString(); const sc=Number(d.score)||0;
         const createdAt = d.createdAt?.toDate ? d.createdAt.toDate() : new Date();
-        if (!bestPerName.has(nm) || sc > bestPerName.get(nm).score) {
-          bestPerName.set(nm, { score: sc, createdAt });
-        }
+        if(!bestByName.has(nm) || sc>bestByName.get(nm).score) bestByName.set(nm,{score:sc,createdAt});
       });
-
-      const unique = [...bestPerName.entries()]
-        .sort((a,b)=> b[1].score - a[1].score)
-        .slice(0,10);
-
-      list.innerHTML = "";
-      if (unique.length === 0){
-        list.innerHTML = "<li>No scores yet. Be the first! 🎯</li>";
-      } else {
-        unique.forEach(([name, row], i)=>{
-          const ts = `${row.createdAt.toLocaleDateString()} ${row.createdAt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
-          const li = document.createElement("li");
-          li.innerHTML = `<strong>${i+1}.</strong> ${esc(name)} — <strong>${row.score}</strong> <span class="lb-meta">(${ts})</span>`;
-          list.appendChild(li);
-        });
-      }
-      meta.textContent = `Game: ${gameSel.options[gameSel.selectedIndex].text} — Top 10 best unique players.`;
+      const rows = [...bestByName.entries()].sort((a,b)=>b[1].score-a[1].score).slice(0,10);
+      list.innerHTML = rows.length? "" : "<li>No scores yet. Be the first! 🎯</li>";
+      rows.forEach(([name,row],i)=>{
+        const ts = `${row.createdAt.toLocaleDateString()} ${row.createdAt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+        const li=document.createElement("li");
+        li.innerHTML = `<strong>${i+1}.</strong> ${esc(name)} — <strong>${row.score}</strong> <span class="lb-meta">(${ts})</span>`;
+        list.appendChild(li);
+      });
+      meta.textContent = "Top 10 unique players (best score each).";
     }catch(err){
-      list.innerHTML = "<li>Could not load leaderboard. 😿</li>";
+      list.innerHTML = `<li>Could not load leaderboard. 😿</li>`;
       document.getElementById("lbMeta").textContent = String(err);
       console.error(err);
     }
@@ -317,8 +303,6 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
 
   document.getElementById("refreshLB").onclick = renderLB;
   document.getElementById("lbGame").onchange = renderLB;
-
-  // Name button
   document.getElementById("setNameBtn").onclick = ()=>{
     const current = getName();
     const n = prompt("Enter your display name (max 20 chars):", current || "");
@@ -330,25 +314,38 @@ button:hover, .tab:hover{ transform: translateY(-1px) scale(1.02); background: r
     }
   };
 
-  // Expose renderLB
   window.renderLB = renderLB;
-
-  // Initial render
   renderLB();
 </script>
 
 <!-- ===== App & Games ===== -->
 <script>
-/* ===== Helpers & Theme ===== */
+/* === Small UI helpers === */
 const qs=(s,p=document)=>p.querySelector(s); const qsa=(s,p=document)=>[...p.querySelectorAll(s)];
 qs('#themeBtn').onclick=()=>document.body.classList.toggle('dark');
 
-/* Lock scrolling while a game is running */
-let playing=false;
-function lockScroll(on){ document.body.classList.toggle('noScroll', !!on); }
-function preventKeys(e){ if(!playing) return; const k=e.key||e.code; if(k===' '||k==='Space'||k==='Spacebar'||(k&&k.startsWith('Arrow'))) e.preventDefault(); }
-window.addEventListener('keydown', preventKeys, {passive:false});
-document.addEventListener('touchmove', e=>{ if(playing) e.preventDefault(); }, {passive:false});
+/* celebration */
+function toast(msg, ms=2200){ const t=qs('#toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none', ms); }
+function confettiBurst(duration=1200,count=140){
+  const c=qs('#celebrate'),ctx=c.getContext('2d'); let w=c.width=innerWidth, h=c.height=innerHeight;
+  function resize(){ w=c.width=innerWidth; h=c.height=innerHeight; } addEventListener('resize', resize);
+  const flakes=[]; for(let i=0;i<count;i++) flakes.push({x:Math.random()*w,y:-Math.random()*h*0.3,r:4+Math.random()*4,vx:(Math.random()-0.5)*3,vy:2+Math.random()*3,rot:Math.random()*Math.PI,vr:(Math.random()-0.5)*0.2});
+  const start=performance.now(); (function frame(now){ const t=now-start; ctx.clearRect(0,0,w,h);
+    flakes.forEach(f=>{ f.x+=f.vx; f.y+=f.vy; f.rot+=f.vr; ctx.save(); ctx.translate(f.x,f.y); ctx.rotate(f.rot); ctx.fillStyle=`hsl(${(f.x/w)*360},90%,55%)`; ctx.fillRect(-f.r,-f.r,f.r*2,f.r*2); ctx.restore(); });
+    if(t<duration) requestAnimationFrame(frame); else ctx.clearRect(0,0,w,h);
+  })(performance.now());
+}
+
+/* Ask name BEFORE starting a game */
+async function ensureName(){
+  let name = window.getName ? window.getName() : "";
+  if(!name || !name.trim()){
+    const n = prompt("Enter your display name for the leaderboard:", "") || "";
+    name = (n.trim() || "Anonymous").slice(0,20);
+    window.setName && window.setName(name);
+  }
+  return name;
+}
 
 /* ===== Tabs ===== */
 const games=[
@@ -363,7 +360,7 @@ function renderTabs(){ tabsEl.innerHTML=''; games.forEach(g=>{ const b=document.
 function activate(key){ current=key; renderTabs(); qsa('.gameWrap').forEach(w=>w.classList.toggle('active', w.dataset.game===key)); GAMES[key]?.onShow?.(); }
 renderTabs();
 
-/* ===== Verse of the Day (with fallbacks) ===== */
+/* ===== Verse (unchanged) ===== */
 const verseEl=qs('#verse'), refEl=qs('#verseRef'), apiNote=qs('#apiNote');
 const FALLBACKS=[
   {ref:'Philippians 4:13', text:'I can do all things through Christ who strengthens me.'},
@@ -375,95 +372,47 @@ const FALLBACKS=[
 function dayIndex(){ return Math.floor(Date.now()/86400000); }
 async function fetchVerse(){
   const key='votd:'+dayIndex(); const cached=localStorage.getItem(key);
-  if(cached){ try{ const d=JSON.parse(cached); showVerse(d.text,d.ref,''); return; }catch{} }
-  try{
-    const r=await fetch('https://labs.bible.org/api/?passage=votd&formatting=plain');
-    if(r.ok){ const t=await r.text(); if(t){ showVerse(t.trim(),'VOTD (labs.bible.org)',''); localStorage.setItem(key, JSON.stringify({text:t.trim(), ref:'VOTD'})); return; } }
-  }catch{}
-  try{
-    const refs=['john 3:16','psalm 23:1','philippians 4:6','matthew 6:34','isaiah 40:31','romans 12:12','psalm 91:1'];
-    const ref=encodeURIComponent(refs[dayIndex()%refs.length]);
-    const r=await fetch('https://bible-api.com/'+ref);
-    if(r.ok){ const j=await r.json(); if(j?.text){ showVerse(j.text.trim(), j.reference||'Bible', ''); localStorage.setItem(key, JSON.stringify({text:j.text.trim(), ref:j.reference||'Bible'})); return; } }
-  }catch{}
-  const f=FALLBACKS[dayIndex()%FALLBACKS.length]; showVerse(f.text, f.ref, '');
+  if(cached){ try{ const d=JSON.parse(cached); showVerse(d.text,d.ref); return; }catch{} }
+  try{ const r=await fetch('https://labs.bible.org/api/?passage=votd&formatting=plain'); if(r.ok){ const t=await r.text(); if(t){ showVerse(t.trim(),'VOTD'); localStorage.setItem(key, JSON.stringify({text:t.trim(), ref:'VOTD'})); return; } } }catch{}
+  try{ const refs=['john 3:16','psalm 23:1','philippians 4:6','matthew 6:34','isaiah 40:31','romans 12:12','psalm 91:1']; const ref=encodeURIComponent(refs[dayIndex()%refs.length]); const r=await fetch('https://bible-api.com/'+ref); if(r.ok){ const j=await r.json(); if(j?.text){ showVerse(j.text.trim(), j.reference||'Bible'); localStorage.setItem(key, JSON.stringify({text:j.text.trim(), ref:j.reference||'Bible'})); return; } } }catch{}
+  const f=FALLBACKS[dayIndex()%FALLBACKS.length]; showVerse(f.text, f.ref);
 }
-function showVerse(text, ref, note){ verseEl.textContent='“'+text.replace(/^\"|\"$/g,'')+'”'; refEl.textContent=ref?('— '+ref):''; apiNote.textContent=note||''; }
+function showVerse(text, ref){ verseEl.textContent='“'+text.replace(/^\"|\"$/g,'')+'”'; refEl.textContent=ref?('— '+ref):''; }
 fetchVerse();
 
 /* ===== Games ===== */
 const GAMES={};
 
-/* Utility: submit score (prompts name once) */
-async function submitScore(game, score){
-  try{
-    let name = window.getName ? window.getName() : "";
-    if(!name || !name.trim()){
-      const n = prompt("Enter your display name for the leaderboard:", "") || "";
-      name = (n.trim() || "Anonymous").slice(0,20);
-      window.setName && window.setName(name);
-    }
-    if(!name){ alert("Name is required for leaderboard."); return; }
-    await window.addScoreIfBest(name, game, score);
-  }catch(err){ console.error(err); }
-}
-
-/* --- 1) Shape Catch: power-ups (x2, slow, shield) --- */
+/* ---- Shape Catch (unchanged features; celebration hook added) ---- */
 GAMES.catch=(function(){
   const canvas=qs('#catchCanvas'); const scoreEl=qs('#catchScore'); const timeEl=qs('#catchTime'); const bestEl=qs('#catchBest');
   const badge=qs('#catchBadge'), slowB=qs('#catchSlow'), shieldB=qs('#catchShield');
-  let ctx,w,h,rafId,running=false,tLeft=30,score=0,best=+localStorage.getItem('catchBest')||0; bestEl.textContent=best;
+  let ctx,w,h,running=false,tLeft=30,score=0,best=+localStorage.getItem('catchBest')||0; bestEl.textContent=best;
   let catcher,drops=[],lastSpawn=0,keys={},doubleUntil=0,slowUntil=0,shieldUntil=0;
-  const COLORS=["#22d3ee","#60a5fa","#f472b6","#34d399","#fbbf24","#f87171","#a78bfa"];
   function isDouble(){ return performance.now()<doubleUntil; }
   function isSlow(){ return performance.now()<slowUntil; }
   function hasShield(){ return performance.now()<shieldUntil; }
   function resize(){ const DPR=window.devicePixelRatio||1; w=canvas.clientWidth; h=canvas.clientHeight; canvas.width=w*DPR; canvas.height=h*DPR; ctx=canvas.getContext('2d'); ctx.setTransform(DPR,0,0,DPR,0,0); catcher={x:w/2,y:h-26,w:Math.max(110,w*0.24),h:16}; }
-  function start(){ running=true; playing=true; lockScroll(true); tLeft=30; score=0; scoreEl.textContent=score; timeEl.textContent=tLeft; drops=[]; lastSpawn=performance.now(); doubleUntil=slowUntil=shieldUntil=0; loop(performance.now()); tick(); }
-  function spawn(){ const dm=isDouble(); const r=Math.random()*100; let kind,value,color;
-    if(r<9){ kind='double'; value=2; color='#a855f7'; }
-    else if(r<16){ kind='slow'; value=0; color='#06b6d4'; }
-    else if(r<22){ kind='shield'; value=0; color='#10b981'; }
-    else if(r<32){ kind='bomb'; value=-3; color='#111'; }
-    else if(r<96){ kind='good'; value=1; color=COLORS[Math|Math.random()*COLORS.length]; }
-    else { kind='rare'; value=3; color='#ffd166'; }
-    let size,vy;
-    if(kind==='double'){ size=12; vy= isSlow()? 2.1 : 3.2; }
-    else if(kind==='slow'){ size=12; vy= isSlow()? 2.0 : 3.0; }
-    else if(kind==='shield'){ size=14; vy= isSlow()? 2.0 : 3.2; }
-    else if(kind==='bomb'){ size=18; vy= isSlow()? 2.2 : 3.2; }
-    else if(kind==='rare'){ size=18; vy= isSlow()? 2.0 : 3.0; }
-    else { size=16; vy= isSlow()? 2.0 : 3.0; }
-    if(dm && (kind==='good'||kind==='rare')) vy*=1.1;
+  function spawn(){ const r=Math.random()*100; let kind='good',value=1,color='#60a5fa',size=16,vy=isSlow()?2.0:3.0;
+    if(r<9) {kind='double'; value=2; color='#a855f7'; size=12; vy=isSlow()?2.1:3.2;}
+    else if(r<16){kind='slow'; value=0; color='#06b6d4'; size=12; vy=isSlow()?2.0:3.0;}
+    else if(r<22){kind='shield';value=0;color='#10b981'; size=14; vy=isSlow()?2.0:3.2;}
+    else if(r<32){kind='bomb'; value=-3; color='#111'; size=18; vy=isSlow()?2.2:3.2;}
+    else if(r>96){kind='rare'; value=3; color='#ffd166'; size=18; vy=isSlow()?2.0:3.0;}
     drops.push({kind,value,color,x:Math.random()*w,y:-30,vy,size});
   }
   function roundRect(x,y,ww,hh,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+ww,y,x+ww,y+hh,r); ctx.arcTo(x+ww,y+hh,x,y+hh,r); ctx.arcTo(x,y+hh,x,y,r); ctx.arcTo(x,y,x+ww,y,r); ctx.closePath(); }
   function drawItem(d){
     ctx.save(); ctx.translate(d.x,d.y);
-    if(d.kind==='bomb'){
-      ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(0,0,d.size*0.9,0,Math.PI*2); ctx.fill();
-      ctx.strokeStyle='#fffb'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(d.size*0.4,-d.size*0.9);
-      ctx.bezierCurveTo(d.size*0.6,-d.size*1.4,d.size*0.9,-d.size*1.3,d.size*1.1,-d.size*1.0); ctx.stroke();
-      ctx.fillStyle='#ff4d4d'; ctx.beginPath(); ctx.arc(d.size*1.15,-d.size*1.05,3.2,0,Math.PI*2); ctx.fill();
-    } else if(d.kind==='rare'){
-      ctx.fillStyle=d.color; const R=d.size,r=R*0.45; ctx.beginPath();
-      for(let i=0;i<10;i++){ const a=i*Math.PI/5,rad=i%2===0?R:r; ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad); }
-      ctx.closePath(); ctx.shadowColor='#0006'; ctx.shadowBlur=10; ctx.fill();
-    } else { // good / double / slow / shield
-      ctx.fillStyle=d.color; const s=d.size,rr=s*0.35; roundRect(-s,-s,s*2,s*2,rr); ctx.fill();
-      ctx.fillStyle='#fff'; ctx.font=`${Math.round(s*1.2)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      const label = d.kind==='double'?'×2': d.kind==='slow'?'🐢': d.kind==='shield'?'🛡️':'M';
-      ctx.fillText(label, 0, 0);
-    }
+    if(d.kind==='bomb'){ ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(0,0,d.size*0.9,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#ff4d4d'; ctx.beginPath(); ctx.arc(d.size*1.15,-d.size*1.05,3.2,0,Math.PI*2); ctx.fill(); }
+    else{ ctx.fillStyle=d.color; const s=d.size,rr=s*0.35; roundRect(-s,-s,s*2,s*2,rr); ctx.fill(); ctx.fillStyle='#fff'; ctx.font=`${Math.round(s*1.2)}px system-ui`; ctx.textAlign='center'; ctx.textBaseline='middle'; const label = d.kind==='double'?'×2': d.kind==='slow'?'🐢': d.kind==='shield'?'🛡️': d.kind==='rare'?'★':'M'; ctx.fillText(label, 0, 0); }
     ctx.restore();
   }
-  function drawCatcher(){ ctx.save(); ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(catcher.x-catcher.w/2, catcher.y-catcher.h/2, catcher.w, catcher.h); if(hasShield()){ ctx.strokeStyle='#10b981'; ctx.lineWidth=3; ctx.strokeRect(catcher.x-catcher.w/2, catcher.y-catcher.h/2, catcher.w, catcher.h); } ctx.restore(); }
+  function drawCatcher(){ ctx.save(); ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(catcher.x-catcher.w/2, catcher.y-catcher.h/2, catcher.w, catcher.h); if(hasShield()){ ctx.strokeStyle='#10b981'; ctx.lineWidth=3; ctx.strokeRect(catcher.x-catcher.w/2, catcher.y-catcher.h/2, catcher.w, catcher.h);} ctx.restore(); }
   function loop(now){
     if(!running) return; requestAnimationFrame(loop);
-    const interval = isSlow()? 290 : 240;
-    if(now-lastSpawn > interval + Math.random()*200){ spawn(); lastSpawn=now; }
-    const speed = (isSlow()? 5.5 : 7.5);
-    if(keys['ArrowLeft']) catcher.x-=speed; if(keys['ArrowRight']) catcher.x+=speed;
+    if(now-lastSpawn > (isSlow()?290:240) + Math.random()*200){ spawn(); lastSpawn=now; }
+    if(keys['ArrowLeft']) catcher.x-= (isSlow()?5.5:7.5); if(keys['ArrowRight']) catcher.x+= (isSlow()?5.5:7.5);
     catcher.x=Math.max(catcher.w/2,Math.min(w-catcher.w/2,catcher.x));
     ctx.clearRect(0,0,w,h); drawCatcher();
     for(let i=drops.length-1;i>=0;i--){
@@ -475,11 +424,8 @@ GAMES.catch=(function(){
         if(d.kind==='double'){ score+=2; doubleUntil=performance.now()+7000; }
         else if(d.kind==='slow'){ slowUntil=performance.now()+6000; }
         else if(d.kind==='shield'){ shieldUntil=performance.now()+6000; }
-        else if(d.kind==='bomb'){
-          if(hasShield()){ shieldUntil=0; } else { score=Math.max(0, score-3); }
-        } else { // good/rare
-          score += (d.value * (isDouble()?2:1));
-        }
+        else if(d.kind==='bomb'){ if(hasShield()){ shieldUntil=0; } else { score=Math.max(0, score-3); } }
+        else { score += d.value * (isDouble()?2:1); }
         scoreEl.textContent=score;
       } else if(d.y>h+40) drops.splice(i,1);
     }
@@ -487,291 +433,154 @@ GAMES.catch=(function(){
     slowB.style.display = isSlow() ? 'inline-block' : 'none';
     shieldB.style.display = hasShield() ? 'inline-block' : 'none';
   }
-  function tick(){ if(!running) return; setTimeout(async ()=>{
-    tLeft--; timeEl.textContent=tLeft;
-    if(tLeft<=0){
-      running=false; playing=false; lockScroll(false);
-      if(score>best){ best=score; localStorage.setItem('catchBest',best); }
-      bestEl.textContent=best;
-      // submit to leaderboard
-      await submitScore('catch', score);
-    } else tick();
-  },1000); }
+  async function endRound(){
+    running=false;
+    // personal-best check + submit
+    const name = window.getName?.() || "Player";
+    const prevBest = +localStorage.getItem('catchBest')||0;
+    const isPB = score>prevBest;
+    if(isPB){ localStorage.setItem('catchBest',score); bestEl.textContent=score; confettiBurst(); toast(`Congrats, ${name}! New personal best 🎉`, 2600); }
+    await window.addScoreIfBest?.('catch', name, score);
+  }
+  function start(){
+    tLeft=30; score=0; scoreEl.textContent=score; timeEl.textContent=tLeft;
+    drops=[]; lastSpawn=performance.now(); doubleUntil=slowUntil=shieldUntil=0; running=true; loop(performance.now());
+    const timer = setInterval(()=>{ if(!running){ clearInterval(timer); return;} tLeft--; timeEl.textContent=tLeft; if(tLeft<=0){ clearInterval(timer); endRound(); }},1000);
+  }
   function onShow(){ resize(); }
-  window.addEventListener('resize', ()=>{ if(current==='catch') resize();});
-  window.addEventListener('keydown', e=>{ if(current!=='catch') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); keys[e.key]=true; }});
-  window.addEventListener('keyup',   e=>{ if(current!=='catch') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ keys[e.key]=false; }});
-  canvas.addEventListener('mousemove', e=>{ if(current!=='catch') return; const r=canvas.getBoundingClientRect(); const x=Math.max(0,Math.min(w,e.clientX-r.left)); catcher&&(catcher.x=x);});
-  canvas.addEventListener('touchstart', e=>{ if(current!=='catch') return; e.preventDefault(); const t=e.touches[0]; if(!t) return; const r=canvas.getBoundingClientRect(); const x=Math.max(0,Math.min(w,t.clientX-r.left)); catcher&&(catcher.x=x);},{passive:false});
-  canvas.addEventListener('touchmove',  e=>{ if(current!=='catch') return; e.preventDefault(); const t=e.touches[0]; if(!t) return; const r=canvas.getBoundingClientRect(); const x=Math.max(0,Math.min(w,t.clientX-r.left)); catcher&&(catcher.x=x);},{passive:false});
-  qs('#catchStart').onclick=start;
+  // controls: ONLY attach to canvas to avoid blocking page scroll
+  function onKey(e){ if(current!=='catch') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); keys[e.key]= (e.type==='keydown'); } }
+  addEventListener('keydown', onKey, {passive:false}); addEventListener('keyup', onKey);
+  canvas.addEventListener('mousemove', e=>{ if(current!=='catch') return; const r=canvas.getBoundingClientRect(); const x=Math.max(0,Math.min(w,e.clientX-r.left)); catcher&&(catcher.x=x); });
+  canvas.addEventListener('touchstart', e=>{ if(current!=='catch') return; const t=e.touches[0]; if(!t) return; const r=canvas.getBoundingClientRect(); catcher.x=Math.max(0,Math.min(w,t.clientX-r.left)); }, {passive:true});
+  canvas.addEventListener('touchmove', e=>{ if(current!=='catch') return; const t=e.touches[0]; if(!t) return; const r=canvas.getBoundingClientRect(); catcher.x=Math.max(0,Math.min(w,t.clientX-r.left)); }, {passive:true});
+  addEventListener('resize', ()=>{ if(current==='catch') resize(); });
+  qs('#catchStart').onclick = async ()=>{ await ensureName(); start(); };
   return { onShow };
 })();
 
-/* --- 2) Snake: slightly faster + progressive speed --- */
+/* ---- Snake ---- */
 GAMES.snake=(function(){
   const canvas=qs('#snakeCanvas'); const scoreEl=qs('#snakeScore');
-  let ctx,w,h,grid=20,dir={x:1,y:0},snake,food,alive=false,touchStart=null,delay=100;
+  let ctx,w,h,grid=20,dir={x:1,y:0},snake,food,alive=false,touchStart=null,delay=100,score=0;
   function resize(){ const DPR=window.devicePixelRatio||1; w=canvas.clientWidth; h=canvas.clientHeight; canvas.width=w*DPR; canvas.height=h*DPR; ctx=canvas.getContext('2d'); ctx.setTransform(DPR,0,0,DPR,0,0); }
-  function reset(){ snake=[{x:5,y:5}]; dir={x:1,y:0}; spawnFood(); scoreEl.textContent='0'; alive=true; playing=true; lockScroll(true); delay=100; step(); }
   function spawnFood(){ food={ x: Math.floor(Math.random()*(w/grid-2))+1, y: Math.floor(Math.random()*(h/grid-2))+1 } }
+  function draw(){ ctx.clearRect(0,0,w,h); ctx.fillStyle='rgba(0,0,0,0.35)'; snake.forEach(s=>ctx.fillRect(s.x*grid, s.y*grid, grid-2, grid-2)); ctx.fillStyle='#10b981'; ctx.fillRect(food.x*grid, food.y*grid, grid-2, grid-2); }
   function step(){ if(!alive) return; setTimeout(step, delay);
     const head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
-    if(head.x<0||head.y<0||head.x>=(w/grid)||head.y>=(h/grid)|| snake.some(s=>s.x===head.x&&s.y===head.y)){ alive=false; playing=false; lockScroll(false); return; }
+    if(head.x<0||head.y<0||head.x>=(w/grid)||head.y>=(h/grid)|| snake.some(s=>s.x===head.x&&s.y===head.y)){ alive=false; (async()=>{ const name=window.getName?.()||"Player"; const prev=+localStorage.getItem('snakeBest')||0; const isPB=score>prev; if(isPB){ localStorage.setItem('snakeBest',score); confettiBurst(); toast(`Congrats, ${name}! New personal best 🎉`); } await window.addScoreIfBest?.('snake', name, score); })(); return; }
     snake.unshift(head);
-    if(head.x===food.x && head.y===food.y){ scoreEl.textContent=String(+scoreEl.textContent+1); spawnFood(); delay=Math.max(60, delay-3); } else snake.pop();
+    if(head.x===food.x && head.y===food.y){ score++; scoreEl.textContent=String(score); spawnFood(); delay=Math.max(60, delay-3); } else snake.pop();
     draw();
   }
-  function draw(){ ctx.clearRect(0,0,w,h); ctx.fillStyle='rgba(0,0,0,0.35)'; snake.forEach(s=>ctx.fillRect(s.x*grid, s.y*grid, grid-2, grid-2)); ctx.fillStyle='#10b981'; ctx.fillRect(food.x*grid, food.y*grid, grid-2, grid-2); }
+  function start(){ snake=[{x:5,y:5}]; dir={x:1,y:0}; spawnFood(); score=0; scoreEl.textContent='0'; alive=true; step(); }
   function onShow(){ resize(); draw(); }
-  window.addEventListener('resize', ()=>{ if(current==='snake') { resize(); draw(); }});
-  qs('#snakeStart').onclick=reset;
-  window.addEventListener('keydown', e=>{
-    if(current!=='snake') return;
-    const k=e.key;
-    if(k==='ArrowUp'&&dir.y!==1) dir={x:0,y:-1};
-    else if(k==='ArrowDown'&&dir.y!==-1) dir={x:0,y:1};
-    else if(k==='ArrowLeft'&&dir.x!==1) dir={x:-1,y:0};
-    else if(k==='ArrowRight'&&dir.x!==-1) dir={x:1,y:0};
-  });
+  // keys only while canvas focused area
+  function onKey(e){ if(current!=='snake') return; const k=e.key; if(k==='ArrowUp'&&dir.y!==1) dir={x:0,y:-1}; else if(k==='ArrowDown'&&dir.y!==-1) dir={x:0,y:1}; else if(k==='ArrowLeft'&&dir.x!==1) dir={x:-1,y:0}; else if(k==='ArrowRight'&&dir.x!==-1) dir={x:1,y:0}; }
+  addEventListener('keydown', onKey);
   canvas.addEventListener('touchstart', e=>{ if(current!=='snake') return; const t=e.touches[0]; if(!t) return; touchStart={x:t.clientX,y:t.clientY}; }, {passive:true});
-  canvas.addEventListener('touchmove',  e=>{ if(current!=='snake'||!touchStart) return; e.preventDefault(); const t=e.touches[0]; if(!t) return;
-    const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y; const ax=Math.abs(dx), ay=Math.abs(dy);
-    if(Math.max(ax,ay)>22){ if(ax>ay){ if(dx>0&&dir.x!==-1) dir={x:1,y:0}; else if(dx<0&&dir.x!==1) dir={x:-1,y:0}; } else { if(dy>0&&dir.y!==-1) dir={x:0,y:1}; else if(dy<0&&dir.y!==1) dir={x:0,y:-1}; } touchStart={x:t.clientX,y:t.clientY}; }
-  }, {passive:false});
+  canvas.addEventListener('touchmove',  e=>{ if(current!=='snake'||!touchStart) return; const t=e.touches[0]; if(!t) return; const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y; const ax=Math.abs(dx), ay=Math.abs(dy); if(Math.max(ax,ay)>22){ if(ax>ay){ if(dx>0&&dir.x!==-1) dir={x:1,y:0}; else if(dx<0&&dir.x!==1) dir={x:-1,y:0}; } else { if(dy>0&&dir.y!==-1) dir={x:0,y:1}; else if(dy<0&&dir.y!==1) dir={x:0,y:-1}; } touchStart={x:t.clientX,y:t.clientY}; } }, {passive:true});
+  addEventListener('resize', ()=>{ if(current==='snake'){ resize(); draw(); }});
+  qs('#snakeStart').onclick = async ()=>{ await ensureName(); start(); };
   return { onShow };
 })();
 
-/* --- 3) Flappy Dot: add collectible rings --- */
+/* ---- Flappy ---- */
 GAMES.flap=(function(){
   const canvas=qs('#flapCanvas'); const scoreEl=qs('#flapScore');
   let ctx,w,h; let y,vy,gapX,pipes=[],rings=[],score,alive=false; const G=0.45, JUMP=-7.2;
   function resize(){ const DPR=window.devicePixelRatio||1; w=canvas.clientWidth; h=canvas.clientHeight; canvas.width=w*DPR; canvas.height=h*DPR; ctx=canvas.getContext('2d'); ctx.setTransform(DPR,0,0,DPR,0,0); if(!alive) draw(); }
-  function reset(){ y=h/2; vy=0; pipes=[]; rings=[]; score=0; scoreEl.textContent='0'; gapX=0; alive=true; playing=true; lockScroll(true); step(); }
+  function draw(){ ctx.clearRect(0,0,w,h); }
   function addPipe(){ const gap=140; const top=Math.random()*(h-gap-80)+40; const x=w+20; pipes.push({ x, top, bottom:top+gap }); if(Math.random()<0.7){ rings.push({x:x+120, y: top+gap/2, r:10, hit:false}); } }
   function step(){ if(!alive) return; requestAnimationFrame(step); ctx.clearRect(0,0,w,h);
-    vy+=G; y+=vy; if(y>h-10||y<10){ alive=false; playing=false; lockScroll(false); return; }
+    vy+=G; y+=vy; if(y>h-10||y<10){ alive=false; (async()=>{ const nm=window.getName?.()||"Player"; const prev=+localStorage.getItem('flapBest')||0; const isPB=score>prev; if(isPB){ localStorage.setItem('flapBest',score); confettiBurst(); toast(`Congrats, ${nm}! New personal best 🎉`); } await window.addScoreIfBest?.('flap', nm, score); })(); return; }
     if(gapX<=0){ addPipe(); gapX=180; } gapX--; pipes.forEach(p=>p.x-=3.2); pipes=pipes.filter(p=>p.x>-60);
     rings.forEach(r=>r.x-=3.2); rings=rings.filter(r=>r.x>-40);
     ctx.fillStyle='rgba(0,0,0,0.35)'; pipes.forEach(p=>{ ctx.fillRect(p.x,0,50,p.top); ctx.fillRect(p.x,p.bottom,50,h-p.bottom); });
-    // rings
-    ctx.strokeStyle='#fbbf24'; ctx.lineWidth=4; rings.forEach(r=>{ ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,Math.PI*2); ctx.stroke(); });
-    rings.forEach(r=>{ if(!r.hit && Math.hypot(r.x-80, r.y-y) < r.r+10){ r.hit=true; score+=2; scoreEl.textContent=String(score); } });
-    // collision + score on pipe pass
-    pipes.forEach(p=>{ if(p.x+50<80&&!p.counted){ p.counted=true; score++; scoreEl.textContent=String(score);} const withinX=(p.x<100 && p.x+50>60); if(withinX && (y-10<p.top || y+10>p.bottom)) { alive=false; playing=false; lockScroll(false);} });
+    ctx.strokeStyle='#fbbf24'; ctx.lineWidth=4; rings.forEach(r=>{ ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,Math.PI*2); ctx.stroke(); if(!r.hit && Math.hypot(r.x-80, r.y-y) < r.r+10){ r.hit=true; score+=2; scoreEl.textContent=String(score); } });
+    pipes.forEach(p=>{ if(p.x+50<80&&!p.counted){ p.counted=true; score++; scoreEl.textContent=String(score);} const withinX=(p.x<100 && p.x+50>60); if(withinX && (y-10<p.top || y+10>p.bottom)) { alive=false; (async()=>{ const nm=window.getName?.()||"Player"; const prev=+localStorage.getItem('flapBest')||0; const isPB=score>prev; if(isPB){ localStorage.setItem('flapBest',score); confettiBurst(); toast(`Congrats, ${nm}! New personal best 🎉`); } await window.addScoreIfBest?.('flap', nm, score); })(); } });
     ctx.beginPath(); ctx.arc(80,y,10,0,Math.PI*2); ctx.fillStyle='#8b5cf6'; ctx.fill();
   }
   function flap(){ if(current!=='flap') return; vy=JUMP; }
+  function start(){ y=h/2; vy=0; pipes=[]; rings=[]; score=0; scoreEl.textContent='0'; gapX=0; alive=true; step(); }
   function onShow(){ resize(); }
-  window.addEventListener('resize', ()=>{ if(current==='flap') resize(); });
-  qs('#flapStart').onclick=async ()=>{ reset(); };
+  addEventListener('resize', ()=>{ if(current==='flap') resize(); });
   window.addEventListener('keydown', e=>{ if(current==='flap' && (e.code==='Space'||e.key===' ')){ e.preventDefault(); flap(); }});
   canvas.addEventListener('mousedown', flap);
-  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); flap(); }, {passive:false});
-  // submit score when tab changes or death handled above? We can’t hook end reliably here; keep manual submission on death only (already ends).
+  canvas.addEventListener('touchstart', e=>{ flap(); }, {passive:true});
+  qs('#flapStart').onclick = async ()=>{ await ensureName(); start(); };
   return { onShow };
 })();
 
-/* --- 4) Breakout: robust + levels + power-ups --- */
+/* ---- Breakout (celebration + name-before-start already handled) ---- */
 GAMES.breakout=(function(){
   const canvas=qs('#brkCanvas'); const scoreEl=qs('#brkScore'); const livesEl=qs('#brkLives'); const levelEl=qs('#brkLevel');
-  let ctx,w,h,ball,paddle,bricks,cols,rows,brickW,brickH,score,lives,rafId,keys={},running=false,level=1,speedMul=1,balls=[],powerups=[];
+  let ctx,w,h,ball,paddle,bricks,cols,rows,brickW,brickH,score,lives,keys={},running=false,level=1,speedMul=1,balls=[],powerups=[];
   function resize(){ const DPR=window.devicePixelRatio||1; w=canvas.clientWidth; h=canvas.clientHeight; canvas.width=w*DPR; canvas.height=h*DPR; ctx=canvas.getContext('2d'); ctx.setTransform(DPR,0,0,DPR,0,0); if(!running) draw(); }
-  function start(){ level=1; score=0; lives=3; levelEl.textContent=level; scoreEl.textContent='0'; livesEl.textContent='3'; buildLevel(); running=true; playing=true; lockScroll(true); loop(); }
-  function buildLevel(){
-    speedMul = 1 + (level-1)*0.08;
-    const basePaddle = Math.max(70, w*0.22 - (level-1)*12);
+  function buildLevel(){ speedMul = 1 + (level-1)*0.08; const basePaddle = Math.max(70, w*0.22 - (level-1)*12);
     paddle={w:basePaddle,h:14,x:w/2,y:h-28,speed:8 + (level-1)*0.2};
     balls=[{x:w/2,y:h*0.6,r:7,vx:(3.0+0.25*(level-1))*(Math.random()<0.5?-1:1),vy:-(3.2+0.25*(level-1))}];
     powerups=[];
-    rows = 4 + Math.min(4, level);
-    cols = 9;
-    brickH = 22; brickW = (w-60)/cols;
-    bricks = [];
-    for(let r=0;r<rows;r++){
-      const row=[];
-      for(let c=0;c<cols;c++){
-        const split = (r%2===1 && c%2===0);
-        const hole = Math.random() < Math.min(0.15+level*0.02, 0.35);
-        if(split || hole){ row.push(null); continue; }
-        const bx = 30 + c*brickW, by = 40 + r*(brickH+10);
-        // small chance of power-up
-        const p = Math.random();
-        const pu = p<0.08 ? 'wide' : p<0.14 ? 'multiball' : null;
-        row.push({x:bx, y:by, w:brickW-6, h:brickH, hit:false, pu});
-      }
-      bricks.push(row);
-    }
+    rows = 4 + Math.min(4, level); cols = 9; brickH = 22; brickW = (w-60)/cols;
+    bricks = []; for(let r=0;r<rows;r++){ const row=[]; for(let c=0;c<cols;c++){
+      const split = (r%2===1 && c%2===0), hole = Math.random()<Math.min(0.15+level*0.02,0.35); if(split||hole){ row.push(null); continue; }
+      const bx=30+c*brickW, by=40+r*(brickH+10); const p=Math.random(); const pu = p<0.08?'wide': p<0.14?'multiball':null; row.push({x:bx,y:by,w:brickW-6,h:brickH,hit:false,pu});
+    } bricks.push(row); }
   }
-  function draw(){
-    ctx.clearRect(0,0,w,h);
-    // paddle
-    ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(paddle.x-paddle.w/2,paddle.y-paddle.h/2,paddle.w,paddle.h);
-    // balls
-    balls.forEach(b=>{ ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fillStyle='#8b5cf6'; ctx.fill(); })
-    // bricks
-    bricks.forEach((row,ri)=>row.forEach((b,ci)=>{
-      if(!b || b.hit) return;
-      ctx.fillStyle=`hsl(${(ri*cols+ci)*15%360} 85% 55%)`;
-      ctx.fillRect(b.x,b.y,b.w,b.h);
-    }));
-    // powerups
-    powerups.forEach(pu=>{
-      ctx.fillStyle = pu.type==='wide' ? '#06b6d4' : '#fbbf24';
-      ctx.fillRect(pu.x-10, pu.y-10, 20, 20);
-      ctx.fillStyle='#000'; ctx.font='12px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(pu.type==='wide'?'W':'M', pu.x, pu.y);
-    });
-  }
-  function circleRectColl(cx,cy,r, rx,ry,rw,rh){
-    const nx = Math.max(rx, Math.min(cx, rx+rw));
-    const ny = Math.max(ry, Math.min(cy, ry+rh));
-    const dx = cx - nx, dy = cy - ny;
-    const dist2 = dx*dx + dy*dy;
-    if(dist2 > r*r) return null;
-    const dist = Math.max(0.0001, Math.sqrt(dist2));
-    return { nx: dx/dist, ny: dy/dist };
-  }
+  function start(){ level=1; score=0; lives=3; levelEl.textContent=level; scoreEl.textContent='0'; livesEl.textContent='3'; buildLevel(); running=true; loop(); }
+  function draw(){ ctx.clearRect(0,0,w,h); ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(paddle.x-paddle.w/2,paddle.y-paddle.h/2,paddle.w,paddle.h);
+    balls.forEach(b=>{ ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,Math.PI*2); ctx.fillStyle='#8b5cf6'; ctx.fill(); });
+    bricks.forEach((row,ri)=>row.forEach((b,ci)=>{ if(!b||b.hit) return; ctx.fillStyle=`hsl(${(ri*cols+ci)*15%360} 85% 55%)`; ctx.fillRect(b.x,b.y,b.w,b.h);})); powerups.forEach(pu=>{ ctx.fillStyle = pu.type==='wide' ? '#06b6d4' : '#fbbf24'; ctx.fillRect(pu.x-10, pu.y-10, 20, 20); ctx.fillStyle='#000'; ctx.font='12px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(pu.type==='wide'?'W':'M', pu.x, pu.y); }); }
+  function circleRectColl(cx,cy,r, rx,ry,rw,rh){ const nx = Math.max(rx, Math.min(cx, rx+rw)); const ny = Math.max(ry, Math.min(cy, ry+rh)); const dx = cx - nx, dy = cy - ny; const dist2 = dx*dx + dy*dy; if(dist2 > r*r) return null; const dist = Math.max(0.0001, Math.sqrt(dist2)); return { nx: dx/dist, ny: dy/dist }; }
+  async function finish(){ running=false; const name=window.getName?.()||"Player"; const prev=+localStorage.getItem('brkBest')||0; const isPB=score>prev; if(isPB){ localStorage.setItem('brkBest',score); confettiBurst(); toast(`Congrats, ${name}! New personal best 🎉`); } await window.addScoreIfBest?.('breakout', name, score); }
   function step(){
-    if(keys['ArrowLeft']) paddle.x-=paddle.speed;
-    if(keys['ArrowRight']) paddle.x+=paddle.speed;
-    paddle.x=Math.max(paddle.w/2, Math.min(w-paddle.w/2, paddle.x));
-    // move balls
-    balls.forEach(b=>{ b.x+=b.vx*speedMul; b.y+=b.vy*speedMul; });
-    // walls + paddle + bricks for each ball
+    if(!running) return;
+    if(keys['ArrowLeft']) paddle.x-=paddle.speed; if(keys['ArrowRight']) paddle.x+=paddle.speed; paddle.x=Math.max(paddle.w/2, Math.min(w-paddle.w/2, paddle.x));
+    balls.forEach(b=>{ b.x+=b.vx*speedMul; b.y+=b.vy*speedMul; if(b.x<b.r){ b.x=b.r; b.vx=Math.abs(b.vx);} if(b.x>w-b.r){ b.x=w-b.r; b.vx=-Math.abs(b.vx);} if(b.y<b.r){ b.y=b.r; b.vy=Math.abs(b.vy);} });
+    // paddle & bricks
     for(const b of balls){
-      if(b.x<b.r){ b.x=b.r; b.vx = Math.abs(b.vx); }
-      if(b.x>w-b.r){ b.x=w-b.r; b.vx = -Math.abs(b.vx); }
-      if(b.y<b.r){ b.y=b.r; b.vy = Math.abs(b.vy); }
-      // paddle
-      const pc = circleRectColl(b.x,b.y,b.r, paddle.x-paddle.w/2, paddle.y-paddle.h/2, paddle.w, paddle.h);
-      if(pc){
-        const vdotn = b.vx*pc.nx + b.vy*pc.ny;
-        b.vx -= 2*vdotn*pc.nx; b.vy -= 2*vdotn*pc.ny;
-        const off=(b.x - paddle.x)/(paddle.w/2); b.vx += off*1.6;
-        if(b.vy > -2.5) b.vy = -2.5;
-      }
-      // bricks
-      outer:
-      for(let r=0;r<bricks.length;r++){
-        const row=bricks[r];
-        for(let c=0;c<row.length;c++){
-          const br=row[c]; if(!br || br.hit) continue;
-          const col = circleRectColl(b.x,b.y,b.r, br.x,br.y,br.w,br.h);
-          if(col){
-            br.hit=true; score++; scoreEl.textContent=String(score);
-            const vdotn = b.vx*col.nx + b.vy*col.ny;
-            b.vx -= 2*vdotn*col.nx; b.vy -= 2*vdotn*col.ny;
-            // power-up drop
-            if(br.pu){ powerups.push({type:br.pu, x:br.x+br.w/2, y:br.y+br.h/2, vy:2.2}); }
-            break outer;
-          }
-        }
-      }
-      // bottom lose (per ball)
-      if(b.y>h+30){
-        balls.splice(balls.indexOf(b),1);
-      }
+      const pc=circleRectColl(b.x,b.y,b.r, paddle.x-paddle.w/2, paddle.y-paddle.h/2, paddle.w, paddle.h);
+      if(pc){ const v=b.vx*pc.nx+b.vy*pc.ny; b.vx-=2*v*pc.nx; b.vy-=2*v*pc.ny; const off=(b.x-paddle.x)/(paddle.w/2); b.vx+=off*1.6; if(b.vy>-2.5) b.vy=-2.5; }
+      outer: for(let r=0;r<bricks.length;r++){ const row=bricks[r]; for(let c=0;c<row.length;c++){ const br=row[c]; if(!br||br.hit) continue; const col=circleRectColl(b.x,b.y,b.r, br.x,br.y,br.w,br.h); if(col){ br.hit=true; score++; scoreEl.textContent=String(score); const v=b.vx*col.nx+b.vy*col.ny; b.vx-=2*v*col.nx; b.vy-=2*v*col.ny; if(br.pu){ powerups.push({type:br.pu, x:br.x+br.w/2, y:br.y+br.h/2, vy:2.2}); } break outer; } } }
+      if(b.y>h+30){ const i=balls.indexOf(b); if(i>=0) balls.splice(i,1); }
     }
-    // powerups fall
     powerups.forEach(pu=>{ pu.y+=pu.vy; });
-    for(let i=powerups.length-1;i>=0;i--){
-      const pu = powerups[i];
-      if(pu.y > h+40){ powerups.splice(i,1); continue; }
-      if(Math.abs(pu.x - paddle.x) < paddle.w/2 && Math.abs(pu.y - paddle.y) < 20){
-        // apply
-        if(pu.type==='wide') paddle.w = Math.min(paddle.w*1.35, w*0.55);
-        if(pu.type==='multiball' && balls.length<3){
-          balls.push({x:paddle.x-20,y:paddle.y-40,r:7,vx:-3.0,vy:-3.2});
-          balls.push({x:paddle.x+20,y:paddle.y-40,r:7,vx:3.0,vy:-3.2});
-        }
-        powerups.splice(i,1);
-      }
-    }
-    // if no balls, lose a life
-    if(balls.length===0){
-      lives--; livesEl.textContent=String(lives);
-      if(lives<=0){ running=false; playing=false; lockScroll(false); submitScore('breakout', score); return; }
-      balls=[{x:w/2,y:h*0.6,r:7,vx:(3.0+0.25*(level-1))*(Math.random()<0.5?-1:1),vy:-(3.2+0.25*(level-1))}];
-      paddle.x=w/2;
-    }
-    // prevent corner trap
-    balls.forEach(b=>{
-      if(b.y > h-40 && Math.abs(b.vy) < 0.4){
-        b.vy = -2.2;
-        if(Math.abs(b.vx) < 1.0) b.vx += (b.x < w/2 ? 1.2 : -1.2);
-      }
-    });
-    // next level
-    const remaining = bricks.some(row=>row.some(br=>br && !br.hit));
-    if(!remaining){
-      level++; levelEl.textContent=level;
-      buildLevel();
-    }
+    for(let i=powerups.length-1;i>=0;i--){ const pu=powerups[i]; if(pu.y>h+40){ powerups.splice(i,1); continue; } if(Math.abs(pu.x-paddle.x)<paddle.w/2 && Math.abs(pu.y-paddle.y)<20){ if(pu.type==='wide') paddle.w=Math.min(paddle.w*1.35, w*0.55); if(pu.type==='multiball' && balls.length<3){ balls.push({x:paddle.x-20,y:paddle.y-40,r:7,vx:-3.0,vy:-3.2}); balls.push({x:paddle.x+20,y:paddle.y-40,r:7,vx:3.0,vy:-3.2}); } powerups.splice(i,1);} }
+    // lives/level
+    if(balls.length===0){ lives--; livesEl.textContent=String(lives); if(lives<=0) return finish(); balls=[{x:w/2,y:h*0.6,r:7,vx:(3.0+0.25*(level-1))*(Math.random()<0.5?-1:1),vy:-(3.2+0.25*(level-1))}]; paddle.x=w/2; }
+    balls.forEach(b=>{ if(b.y>h-40 && Math.abs(b.vy)<0.4){ b.vy=-2.2; if(Math.abs(b.vx)<1.0) b.vx += (b.x<w/2?1.2:-1.2); } });
+    const remaining = bricks.some(row=>row.some(br=>br && !br.hit)); if(!remaining){ level++; levelEl.textContent=level; buildLevel(); }
   }
   function loop(){ if(!running){ draw(); return; } requestAnimationFrame(loop); step(); draw(); }
   function onShow(){ resize(); draw(); }
-  window.addEventListener('resize', ()=>{ if(current==='breakout') resize(); });
-  qs('#brkStart').onclick=()=>{ running=false; start(); };
-  window.addEventListener('keydown', e=>{ if(current!=='breakout') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); keys[e.key]=true; }});
-  window.addEventListener('keyup', e=>{ if(current!=='breakout') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ keys[e.key]=false; }});
+  function onKey(e){ if(current!=='breakout') return; if(e.key==='ArrowLeft'||e.key==='ArrowRight'){ e.preventDefault(); keys[e.key]=(e.type==='keydown'); } }
+  addEventListener('keydown', onKey, {passive:false}); addEventListener('keyup', onKey);
   function moveTo(x){ const r=canvas.getBoundingClientRect(); paddle && (paddle.x=Math.max(paddle.w/2, Math.min(w-paddle.w/2, x-r.left))); }
   canvas.addEventListener('mousemove', e=>{ if(current!=='breakout') return; moveTo(e.clientX); });
-  canvas.addEventListener('touchstart', e=>{ if(current!=='breakout') return; e.preventDefault(); if(e.touches[0]) moveTo(e.touches[0].clientX); }, {passive:false});
-  canvas.addEventListener('touchmove',  e=>{ if(current!=='breakout') return; e.preventDefault(); if(e.touches[0]) moveTo(e.touches[0].clientX); }, {passive:false});
+  canvas.addEventListener('touchstart', e=>{ if(current!=='breakout') return; if(e.touches[0]) moveTo(e.touches[0].clientX); }, {passive:true});
+  canvas.addEventListener('touchmove',  e=>{ if(current!=='breakout') return; if(e.touches[0]) moveTo(e.touches[0].clientX); }, {passive:true});
+  addEventListener('resize', ()=>{ if(current==='breakout') resize(); });
+  qs('#brkStart').onclick = async ()=>{ await ensureName(); start(); };
   return { onShow };
 })();
 
-/* --- 5) Tic-Tac-Toe with difficulty --- */
+/* ---- TicTacToe (same as before) ---- */
 GAMES.ttt=(function(){
   const grid=qs('#tttGrid'); const msg=qs('#tttMsg'); const diffSel=qs('#tttDiff');
   let board, human='X', ai='O', over=false;
   function reset(){ board=Array(9).fill(''); over=false; render(); msg.textContent='Your turn (X)'; }
   function render(){ grid.innerHTML=''; board.forEach((v,i)=>{ const b=document.createElement('button'); b.className='cell'; b.textContent=v; b.onclick=()=>move(i); grid.appendChild(b); }); }
   function move(i){ if(over||board[i]) return; board[i]=human; render(); if(checkEnd()) return; setTimeout(()=>{ aiMove(); checkEnd(); }, 100); }
-  function aiMove(){
-    const d = diffSel.value;
-    // EASY: 60% random, 40% best
-    // MEDIUM: depth-limited minimax (depth 2-3)
-    // HARD: full minimax
-    let idx = -1;
-    if(d==='Easy'){
-      if(Math.random()<0.6){ const empt=emptyIdx(board); idx=empt[Math.floor(Math.random()*empt.length)] ?? -1; }
-      if(idx<0) idx=bestMove(1); // shallow
-    }else if(d==='Medium'){
-      idx=bestMove(3);
-    }else{ // Hard
-      idx=bestMove(9);
-    }
-    if(idx>=0) board[idx]=ai;
-    render();
-  }
-  function bestMove(depthLimit){
-    let best=-1,bestScore=-Infinity;
-    emptyIdx(board).forEach(i=>{
-      board[i]=ai;
-      const s = minimax(board,false, depthLimit-1);
-      board[i]='';
-      if(s>bestScore){ bestScore=s; best=i; }
-    });
-    return best;
-  }
-  function minimax(b,turnAI,depth){
-    const win=winner(b); if(win===ai) return 1; if(win===human) return -1; const empt=emptyIdx(b); if(empt.length===0) return 0;
-    if(depth<=0){ return 0; } // cutoff: makes it imperfect
-    if(turnAI){
-      let m=-Infinity; for(const i of empt){ b[i]=ai; m=Math.max(m, minimax(b,false,depth-1)); b[i]=''; } return m;
-    } else {
-      let m=Infinity; for(const i of empt){ b[i]=human; m=Math.min(m, minimax(b,true,depth-1)); b[i]=''; } return m;
-    }
-  }
+  function aiMove(){ const d=diffSel.value; let idx=-1; if(d==='Easy'){ if(Math.random()<0.6){ const empt=emptyIdx(board); idx=empt[Math.floor(Math.random()*empt.length)] ?? -1; } if(idx<0) idx=bestMove(1); } else if(d==='Medium'){ idx=bestMove(3); } else { idx=bestMove(9); } if(idx>=0) board[idx]=ai; render(); }
+  function bestMove(depth){ let best=-1,bestScore=-Infinity; emptyIdx(board).forEach(i=>{ board[i]=ai; const s=minimax(board,false,depth-1); board[i]=''; if(s>bestScore){ bestScore=s; best=i; } }); return best; }
+  function minimax(b,turnAI,depth){ const win=winner(b); if(win===ai) return 1; if(win===human) return -1; const empt=emptyIdx(b); if(empt.length===0) return 0; if(depth<=0) return 0; if(turnAI){ let m=-Infinity; for(const i of empt){ b[i]=ai; m=Math.max(m,minimax(b,false,depth-1)); b[i]=''; } return m; } else { let m=Infinity; for(const i of empt){ b[i]=human; m=Math.min(m,minimax(b,true,depth-1)); b[i]=''; } return m; } }
   function emptyIdx(b){ return b.map((v,i)=>v?null:i).filter(v=>v!==null); }
   function winner(b){ const L=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]; for(const [a,c,d] of L){ if(b[a]&&b[a]===b[c]&&b[a]===b[d]) return b[a]; } return null; }
   function checkEnd(){ const w=winner(board); if(w){ msg.textContent=(w===human?'You win! 🎉':'AI wins 😼'); over=true; return true; } if(emptyIdx(board).length===0){ msg.textContent='Draw 🤝'; over=true; return true; } msg.textContent='Your turn (X)'; return false; }
   qs('#tttReset').onclick=reset; diffSel.onchange=reset; function onShow(){ if(!board) reset(); } return { onShow };
 })();
 
-/* Tabs initial */
+/* Init */
 GAMES[current]?.onShow?.();
 </script>
 </body>
